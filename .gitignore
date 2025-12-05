@@ -1,0 +1,101 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build outputs
+dist/
+build/
+client/dist/
+client/build/
+server/dist/
+server/build/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+client/.env
+server/.env
+server/.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+
+# Documentation (implementation notes, not README)
+*_FIXED.md
+*_IMPLEMENTED.md
+*_REQUIREMENTS.md
+*_RECOMMENDED.md
+BACKEND_FIX_RECOMMENDED.md
+FRONTEND_VISUAL_UPDATES.md
+FRONTEND_FIXES_APPLIED.md
+GAMIFICATION_IMPLEMENTED.md
+IMPLEMENTATION_COMPLETE.md
+LEADERBOARD_*.md
+MINIMAL_BACKEND_FIXES.md
+PENALTY_CALCULATION_FIXED.md
+PROBLEM_ID_TYPE_FIXED.md
+SCORE_TIME_REQUIREMENTS.md
+TOAST_*.md
+
+# Test files
+test-leetcode.js
+*.test.js
+*.spec.js
+
+# Package lock files (optional - comment out if you want to keep them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Production
+/server/uploads/
+/server/public/uploads/
+
+# Misc
+.vite-inspect/
