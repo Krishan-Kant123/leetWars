@@ -24,8 +24,8 @@ const corsOptions = {
         if (!origin) return callback(null, true);
         
         const allowedOrigins = [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
-            'http://localhost:3000', // Development fallback
+            process.env.FRONTEND_URL || 'https://leet-wars-ruddy.vercel.app',
+            'https://leet-wars-ruddy.vercel.app', // Development fallback
         ];
         
         if (allowedOrigins.indexOf(origin) !== -1) {
