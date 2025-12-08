@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import lcwars from '../assets/lc_wars.png';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -17,7 +18,7 @@ const Navbar = () => {
                     {/* Logo */}
                     <Link to="/dashboard" className="flex items-center gap-3 group">
                         <img
-                            src="/lc_wars.png"
+                            src={lcwars}
                             alt="LeetWars Logo"
                             className="w-10 h-10 object-contain transition-transform group-hover:scale-110"
                         />

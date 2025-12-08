@@ -24,8 +24,8 @@ const corsOptions = {
         if (!origin) return callback(null, true);
         
         const allowedOrigins = [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
-            'http://localhost:3000', // Development fallback
+            process.env.FRONTEND_URL || 'http://localhost:5000',
+            'http://localhost:5000', // Development fallback
         ];
         
         if (allowedOrigins.indexOf(origin) !== -1) {
