@@ -67,9 +67,13 @@ coverage/
 .parcel-cache/
 
 # Documentation (implementation notes, not README)
-# Exclude all .md files except README.md
+
+# Ignore all .md files
 *.md
+
+# Exclude README.md from the above rule
 !README.md
+
 
 # Test files
 test-leetcode.js
