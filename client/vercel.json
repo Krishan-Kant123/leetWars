@@ -2,11 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "src/main.jsx",
+      "src": "package.json",
       "use": "@vercel/static-build"
     }
   ],
   "routes": [
+    {
+      "handle": "filesystem"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"

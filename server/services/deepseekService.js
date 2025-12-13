@@ -17,16 +17,14 @@ const callOpenRouter = async (messages, systemPrompt = '') => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'openai/gpt-3.5-turbo',
+                model: 'openai/gpt-oss-120b:free',
                 messages: messagesWithSystem,
-                temperature: 0.7,
-                max_tokens: 500
+                reasoning:{ enabled: true }
             })
         });
-
         if (!response.ok) {
             const error = await response.json();
-            console.error('❌ OpenRouter API Error:', error);
+            console.error('❌ OpenRouter API Errorr:', error);
             throw new Error('API request failed');
         }
 
@@ -38,6 +36,7 @@ const callOpenRouter = async (messages, systemPrompt = '') => {
         throw new Error('Failed to get response from AI bot');
     }
 };
+
 
 /**
  * Analyze user's LeetCode progress
@@ -89,7 +88,7 @@ const generateRoast = async (userStats, severity = 'medium') => {
         intensityPrompt = 'Go full savage mode! Brutally honest, hilariously mean, but still motivating at the end.';
     }
 
-    const systemPrompt = 'You are a savage but funny roast bot for LeetCode users. Roast them based on their stats but end with motivation.';
+    const systemPrompt = 'You are a savage but roast bot for LeetCode users. Roast them based on their stats but end with motivation.';
 
     const userPrompt = `Roast this user:
 

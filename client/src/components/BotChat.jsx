@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { botAPI } from '../utils/api';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 
 const BotChat = ({ onClose }) => {
     const [messages, setMessages] = useState([
@@ -82,9 +86,17 @@ const BotChat = ({ onClose }) => {
         }
     };
 
+    function normalizeMarkdown(md) {
+     return md
+    .replace(/<br\s*\/?>\s*/gi, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+   }
+
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#0f2a23] rounded-xl shadow-2xl w-full max-w-2xl h-[600px] flex flex-col border border-[#10b981]/30">
+            <div className="bg-[#0f2a23] rounded-xl shadow-2xl w-full max-w-20xl h-[590px] flex flex-col border border-[#10b981]/30">
                 {/* Header */}
                 <div className="p-4 border-b border-[#10b981]/20 flex items-center justify-between bg-gradient-to-r from-[#10b981]/10 to-[#059669]/10">
                     <div className="flex items-center gap-3">
@@ -128,7 +140,14 @@ const BotChat = ({ onClose }) => {
                                         : 'bg-[#0a1f1a] text-gray-100 border border-[#10b981]/20'
                                     } animate-fade-in`}
                             >
-                                <div className="whitespace-pre-wrap">{msg.content}</div>
+                                <div className="whitespace-pre-wrap">
+                                <div className="prose prose-slate max-w-none">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} 
+>
+        {msg.content}
+      </ReactMarkdown>
+    </div>
+    </div>
                             </div>
                         </div>
                     ))}
