@@ -26,26 +26,16 @@ const Navbar = () => {
                     </Link>
 
                     {/* Navigation Links */}
-                    <div className="hidden md:flex items-center gap-6">
+                    {/* <div className="hidden md:flex items-center gap-6">
                         <Link
                             to="/dashboard"
                             className="text-gray-300 hover:text-[#10b981] transition-colors font-medium"
                         >
                             Home
-                        </Link>
-                        <Link
-                            to="/dashboard"
-                            className="text-gray-300 hover:text-[#10b981] transition-colors font-medium"
-                        >
-                            My Contests
-                        </Link>
-                        <Link
-                            to="/profile"
-                            className="text-gray-300 hover:text-[#10b981] transition-colors font-medium"
-                        >
-                            Profile
-                        </Link>
-                    </div>
+                        </Link> */}
+                       
+                       
+                    {/* </div> */}
 
                     {/* Right Side */}
                     <div className="flex items-center gap-4">
@@ -56,15 +46,19 @@ const Navbar = () => {
                         </Link>
 
                         {/* User Menu */}
+                        
                         <div className="flex items-center gap-3">
+                            <Link
+                            to="/profile">
                             <div className="flex items-center gap-2 bg-[#0a1f1a] px-3 py-2 rounded-lg border border-[#10b981]/30">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center text-white font-bold">
-                                    {user?.username?.[0]?.toUpperCase() || 'U'}
+                                    {user?.leetcode_username?.[0]?.toUpperCase() || 'U'}
                                 </div>
                                 <span className="text-sm font-medium text-gray-200 hidden sm:block">
-                                    {user?.username}
+                                    {user?.leetcode_username}
                                 </span>
                             </div>
+                                </Link>
 
                             <button
                                 onClick={handleLogout}
