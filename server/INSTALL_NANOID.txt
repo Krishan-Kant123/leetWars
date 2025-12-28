@@ -1,0 +1,2 @@
+# Install nanoid for contest code generation
+npm install nanoid@3
