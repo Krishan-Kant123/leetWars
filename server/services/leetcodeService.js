@@ -349,7 +349,6 @@ const getUserProfile = async (username) => {
                 totalProblems[item.difficulty] = item.count;
             });
         }
-
         console.log(`Profile fetched successfully`);
 
         return {

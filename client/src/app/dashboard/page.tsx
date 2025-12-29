@@ -46,8 +46,10 @@ function DashboardContent() {
     const [joinCode, setJoinCode] = useState('');
     const [isJoining, setIsJoining] = useState(false);
     const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        setIsMounted(true);
         loadDashboardData();
     }, []);
 
@@ -376,13 +378,19 @@ function DashboardContent() {
                                                     key={contest._id || contest.id}
                                                     href={`/contests/${contest.unique_code}`}
                                                 >
-                                                    <div className={`relative p-4 rounded-xl border transition-all hover:scale-[1.02] cursor-pointer ${isLive
-                                                        ? 'bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/30 hover:border-red-500/50'
-                                                        : 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/30 hover:border-blue-500/50'
-                                                        }`}>
+                                                    <div
+                                                        className={`relative p-4 rounded-xl border transition-all hover:scale-[1.02] cursor-pointer ${isLive
+                                                            ? 'bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/30 hover:border-red-500/50'
+                                                            : 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/30 hover:border-blue-500/50'
+                                                            }`}
+                                                        suppressHydrationWarning
+                                                    >
                                                         <div className="flex items-start justify-between mb-3">
-                                                            <Badge className={isLive ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}>
-                                                                {isLive ? '🔴 Live Now' : '📅 Upcoming'}
+                                                            <Badge
+                                                                className={isLive ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}
+                                                                suppressHydrationWarning
+                                                            >
+                                                                {isMounted ? (isLive ? '🔴 Live Now' : '📅 Upcoming') : 'Loading...'}
                                                             </Badge>
                                                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                                                 <Users className="w-3 h-3" />

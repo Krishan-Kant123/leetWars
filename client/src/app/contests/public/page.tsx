@@ -101,7 +101,7 @@ function PublicContestsContent() {
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Zap className="w-4 h-4" />
-                            <span>{contest.problemCount} problems</span>
+                            <span>{contest.problems?.length || 0} problems</span>
                         </div>
                     </div>
 

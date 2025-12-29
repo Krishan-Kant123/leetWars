@@ -50,6 +50,12 @@ function ContestDetailContent() {
     const [timeRemaining, setTimeRemaining] = useState<string>('');
     const [contestStatus, setContestStatus] = useState<'upcoming' | 'live' | 'ended'>('upcoming');
     const [isGracePeriod, setIsGracePeriod] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Fix hydration mismatch by only rendering time after mount
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const loadContestData = useCallback(async () => {
         try {
@@ -57,6 +63,7 @@ function ContestDetailContent() {
                 contestApi.getContest(code),
                 syncApi.getLeaderboard(code).catch(() => ({ leaderboard: [] })),
             ]);
+            console.log(contestRes.contest)
             setContest(contestRes.contest);
             setLeaderboard(leaderboardRes.leaderboard);
 
@@ -304,11 +311,13 @@ function ContestDetailContent() {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="text-center md:text-right">
+                                <div className="text-center md:text-right" suppressHydrationWarning>
                                     <p className="text-sm text-muted-foreground">
                                         {contestStatus === 'upcoming' ? 'Starts in' : contestStatus === 'live' ? 'Time remaining' : ''}
                                     </p>
-                                    <p className="text-2xl font-mono font-bold text-primary">{timeRemaining}</p>
+                                    <p className="text-2xl font-mono font-bold text-primary" suppressHydrationWarning>
+                                        {isMounted ? timeRemaining : 'Loading...'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -374,7 +383,7 @@ function ContestDetailContent() {
                                                 {getStatusIcon(progress?.status || 'PENDING')}
                                                 <div>
                                                     <p className="text-sm font-medium">
-                                                        {index + 1}. {problem.slug}
+                                                        {index + 1}. {problem?.problem_id?.title ||problem.slug}
                                                     </p>
                                                     <p className={`text-xs ${getDifficultyColor(problem.points === 3 ? 'Easy' : problem.points === 4 ? 'Medium' : 'Hard')}`}>
                                                         +{problem.points} pts
@@ -450,19 +459,25 @@ function ContestDetailContent() {
                                         </div>
                                     ) : (
                                         <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead className="w-12">Rank</TableHead>
-                                                    <TableHead className="w-48">User</TableHead>
+                                            <TableHeader className="sticky top-0 bg-card z-10">
+                                                <TableRow className="hover:bg-transparent">
+                                                    <TableHead className="w-12 font-bold">Rank</TableHead>
+                                                    <TableHead className="w-40 font-bold">User</TableHead>
                                                     {contest?.problems.map((prob, idx) => (
-                                                        <TableHead key={idx} className="text-center min-w-[80px]">
-                                                            {idx + 1}
-                                                            <span className="text-xs font-normal text-muted-foreground ml-1">
-                                                                ({prob.points})
-                                                            </span>
+                                                        <TableHead
+                                                            key={idx}
+                                                            className="text-center min-w-[90px] px-2"
+                                                            title={prob.slug}
+                                                        >
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="font-bold">Q{idx + 1}</span>
+                                                                <span className="text-[10px] font-normal text-muted-foreground">
+                                                                    +{prob.points}pts
+                                                                </span>
+                                                            </div>
                                                         </TableHead>
                                                     ))}
-                                                    <TableHead className="text-right">Score</TableHead>
+                                                    <TableHead className="text-right font-bold">Score</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -472,9 +487,9 @@ function ContestDetailContent() {
                                                         <TableRow key={entry.username} className={isCurrentUser ? 'bg-primary/5' : ''}>
                                                             <TableCell className="font-medium p-2">
                                                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${entry.rank === 1 ? 'bg-yellow-500 text-black' :
-                                                                        entry.rank === 2 ? 'bg-gray-300 text-black' :
-                                                                            entry.rank === 3 ? 'bg-amber-700 text-white' :
-                                                                                'bg-secondary text-foreground'
+                                                                    entry.rank === 2 ? 'bg-gray-300 text-black' :
+                                                                        entry.rank === 3 ? 'bg-amber-700 text-white' :
+                                                                            'bg-secondary text-foreground'
                                                                     }`}>
                                                                     {entry.rank}
                                                                 </div>
@@ -493,20 +508,24 @@ function ContestDetailContent() {
                                                             {contest?.problems.map((prob) => {
                                                                 const progress = entry.problem_progress?.find(p => p.slug === prob.slug);
                                                                 return (
-                                                                    <TableCell key={prob.slug} className="text-center p-1">
+                                                                    <TableCell key={prob.slug} className="text-center p-1" title={prob.slug}>
                                                                         {progress?.status === 'ACCEPTED' ? (
-                                                                            <div className="bg-green-500/10 text-green-500 rounded p-1 mx-auto max-w-[80px]">
-                                                                                <p className="font-bold text-xs">{formatSolveTime(progress.solved_at)}</p>
+                                                                            <div className="bg-green-500/15 border border-green-500/30 text-green-500 rounded-md p-1.5 mx-auto inline-flex flex-col items-center min-w-[70px]">
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <CheckCircle2 className="w-3 h-3" />
+                                                                                    <span className="font-bold text-xs">{formatSolveTime(progress.solved_at)}</span>
+                                                                                </div>
                                                                                 {progress.fail_count > 0 && (
-                                                                                    <p className="text-[10px] opacity-70">(-{progress.fail_count})</p>
+                                                                                    <span className="text-[10px] text-red-400">-{progress.fail_count}</span>
                                                                                 )}
                                                                             </div>
                                                                         ) : progress && progress.fail_count > 0 ? (
-                                                                            <div className="bg-red-500/10 text-destructive rounded p-1 mx-auto max-w-[80px]">
-                                                                                <p className="text-xs font-medium">(-{progress.fail_count})</p>
+                                                                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-md p-1.5 mx-auto inline-flex items-center gap-1 min-w-[50px]">
+                                                                                <XCircle className="w-3 h-3" />
+                                                                                <span className="text-xs font-medium">-{progress.fail_count}</span>
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="text-muted-foreground/20 text-center">-</div>
+                                                                            <div className="text-muted-foreground/30 text-lg">—</div>
                                                                         )}
                                                                     </TableCell>
                                                                 );
