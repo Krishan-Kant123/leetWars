@@ -63,7 +63,11 @@ export const authApi = {
 
 // ==================== CONTEST API ====================
 export interface Problem {
-    problem_id?: string;
+    problem_id?:{
+        title?:String;
+        difficulty?:String;
+        _id?:String;
+    };
     slug: string;
     points?: number;
     title?: string;

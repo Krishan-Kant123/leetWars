@@ -2,3 +2,10 @@
 server/.env
 client/.env
 server/node_modules
+client/node_modules
+dist   
+backend_structure.md
+frontend_structure.md
+client/frontend.md
+server/backend.md
+server/CORS_SECURITY.md

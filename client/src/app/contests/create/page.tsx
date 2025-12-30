@@ -162,7 +162,11 @@ function CreateContestContent() {
         setSelectedProblems((prev) => [
             ...prev,
             {
-                problem_id: problem._id,
+                problem_id:{
+                    title:problem.title,
+                    difficulty:problem.difficulty,
+                    _id:problem._id
+                },
                 slug: problem.title_slug,
                 title: problem.title,
                 difficulty: problem.difficulty,

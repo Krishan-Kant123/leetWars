@@ -383,7 +383,7 @@ function ContestDetailContent() {
                                                 {getStatusIcon(progress?.status || 'PENDING')}
                                                 <div>
                                                     <p className="text-sm font-medium">
-                                                        {index + 1}. {problem?.title ||problem.slug}
+                                                        {index + 1}. {problem?.problem_id?.title ||problem.slug}
                                                     </p>
                                                     <p className={`text-xs ${getDifficultyColor(problem.points === 3 ? 'Easy' : problem.points === 4 ? 'Medium' : 'Hard')}`}>
                                                         +{problem.points} pts

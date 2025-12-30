@@ -117,7 +117,7 @@ export default function LandingPage() {
             <span className="font-semibold">LeetWars</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2024 LeetWars. Built for competitive coders.
+            © 2025 LeetWars. Built for competitive coders.
           </p>
         </div>
       </footer>
