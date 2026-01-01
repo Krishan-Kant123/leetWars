@@ -46,7 +46,7 @@ export default function LandingPage() {
 
             <h1 className="text-5xl md:text-7xl font-bold mb-6">
               <span className="text-foreground">Battle on </span>
-              <span className="text-primary glow-text">LeetCode</span>
+              <span className="text-primary glow-text">LeetWars</span>
             </h1>
 
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
