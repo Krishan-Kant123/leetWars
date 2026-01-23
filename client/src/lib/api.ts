@@ -63,10 +63,10 @@ export const authApi = {
 
 // ==================== CONTEST API ====================
 export interface Problem {
-    problem_id?:{
-        title?:String;
-        difficulty?:String;
-        _id?:String;
+    problem_id?: {
+        title?: String;
+        difficulty?: String;
+        _id?: String;
     };
     slug: string;
     points?: number;
@@ -300,6 +300,44 @@ export const profileApi = {
             averageRank: number | null;
             recentContests: { name: string; date: string; rank: number | string; score: number }[];
         }>(response);
+    },
+};
+
+// ==================== COMPANY API ====================
+export interface CompanyData {
+    name: string;
+    displayName: string;
+    problemCount: number;
+}
+
+export interface CompanyProblem {
+    title: string;
+    title_slug: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard';
+    frequency: number;
+    lastAsked: string;
+    acceptanceRate: string;
+    leetcodeUrl: string;
+    companyName: string;
+}
+
+export const companyApi = {
+    getCompanies: async () => {
+        const response = await fetchWithAuth('/companies/list');
+        return handleResponse<{ companies: CompanyData[]; count: number }>(response);
+    },
+
+    getCompanyProblems: async (companyName: string, difficulty?: string) => {
+        const params = new URLSearchParams();
+        if (difficulty && difficulty !== 'all') {
+            params.append('difficulty', difficulty);
+        }
+
+        const queryString = params.toString();
+        const url = `/companies/${companyName}/problems${queryString ? `?${queryString}` : ''}`;
+
+        const response = await fetchWithAuth(url);
+        return handleResponse<{ problems: CompanyProblem[]; count: number; companyName: string }>(response);
     },
 };
 

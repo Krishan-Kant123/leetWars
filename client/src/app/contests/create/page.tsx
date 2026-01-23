@@ -31,6 +31,12 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs';
+import {
     Trophy,
     Search,
     Plus,
@@ -41,7 +47,9 @@ import {
     AlertCircle,
     CheckCircle2,
     Tag,
+    Building2,
 } from 'lucide-react';
+import { CompanySearchSection } from '@/components/company-search-section';
 
 interface SelectedProblem extends Problem {
     title?: string;
@@ -70,6 +78,7 @@ function CreateContestContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const searchLoaderRef = useRef<HTMLDivElement>(null);
+    const [searchTab, setSearchTab] = useState<'general' | 'company'>('general');
 
     // Get today's date as minimum for date input
     const today = new Date().toISOString().split('T')[0];
@@ -153,8 +162,11 @@ function CreateContestContent() {
         loadProblems(1, false);
     };
 
-    const addProblem = (problem: ProblemData) => {
-        if (selectedProblems.some((p) => p.slug === problem.title_slug)) {
+    const addProblem = (problem: any) => {
+        // Handle both ProblemData (from search) and formatted company problems
+        const slug = problem.slug || problem.title_slug;
+
+        if (selectedProblems.some((p) => p.slug === slug)) {
             toast.error('Problem already added');
             return;
         }
@@ -162,15 +174,15 @@ function CreateContestContent() {
         setSelectedProblems((prev) => [
             ...prev,
             {
-                problem_id:{
-                    title:problem.title,
-                    difficulty:problem.difficulty,
-                    _id:problem._id
+                problem_id: {
+                    title: problem.title,
+                    difficulty: problem.difficulty,
+                    _id: problem._id || null
                 },
-                slug: problem.title_slug,
+                slug: slug,
                 title: problem.title,
                 difficulty: problem.difficulty,
-                points: problem.difficulty === 'Easy' ? 3 : problem.difficulty === 'Medium' ? 4 : 6,
+                points: problem.points || (problem.difficulty === 'Easy' ? 3 : problem.difficulty === 'Medium' ? 4 : 6),
             },
         ]);
         toast.success(`Added: ${problem.title}`);
@@ -426,198 +438,222 @@ function CreateContestContent() {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Search className="w-5 h-5 text-primary" />
-                                    Search Problems
+                                    Add Problems
                                 </CardTitle>
-                                <CardDescription>Find LeetCode problems to add to your contest</CardDescription>
+                                <CardDescription>Search by title/tags or browse by company</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="Search by title or slug..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                    />
-                                    <Select value={searchDifficulty} onValueChange={setSearchDifficulty}>
-                                        <SelectTrigger className="w-32">
-                                            <SelectValue placeholder="Difficulty" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All</SelectItem>
-                                            <SelectItem value="Easy">Easy</SelectItem>
-                                            <SelectItem value="Medium">Medium</SelectItem>
-                                            <SelectItem value="Hard">Hard</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-
-                                    {/* Tag Selection Dialog */}
-                                    <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" className="gap-2">
-                                                <Tag className="w-4 h-4" />
-                                                Tags {searchTags.length > 0 && `(${searchTags.length})`}
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-                                            <DialogHeader>
-                                                <DialogTitle>Select Tags</DialogTitle>
-                                                <DialogDescription>
-                                                    Select problem categories to filter by
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-4">
-                                                <Input
-                                                    placeholder="Filter tags..."
-                                                    value={tagFilter}
-                                                    onChange={(e) => setTagFilter(e.target.value)}
-                                                />
-                                                <ScrollArea className="h-[300px]">
-                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                                        {LEETCODE_TAGS
-                                                            .filter(tag => tag.toLowerCase().includes(tagFilter.toLowerCase()))
-                                                            .map((tag) => {
-                                                                const isSelected = searchTags.includes(tag);
-                                                                return (
-                                                                    <Button
-                                                                        key={tag}
-                                                                        variant={isSelected ? "default" : "outline"}
-                                                                        size="sm"
-                                                                        className="justify-start text-xs h-8"
-                                                                        onClick={() => {
-                                                                            if (isSelected) {
-                                                                                setSearchTags(prev => prev.filter(t => t !== tag));
-                                                                            } else {
-                                                                                setSearchTags(prev => [...prev, tag]);
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        {isSelected && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                                                        {tag}
-                                                                    </Button>
-                                                                );
-                                                            })}
-                                                    </div>
-                                                </ScrollArea>
-                                                <div className="flex justify-between">
-                                                    <Button variant="ghost" size="sm" onClick={() => setSearchTags([])}>
-                                                        Clear All
-                                                    </Button>
-                                                    <Button onClick={() => { setTagDialogOpen(false); handleSearch(); }}>
-                                                        Apply ({searchTags.length} selected)
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
-
-                                    <Button onClick={handleSearch} disabled={isSearching}>
-                                        {isSearching ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
+                                <Tabs value={searchTab} onValueChange={(v) => setSearchTab(v as 'general' | 'company')}>
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="general" className="gap-2">
                                             <Search className="w-4 h-4" />
-                                        )}
-                                    </Button>
-                                </div>
+                                            Search Problems
+                                        </TabsTrigger>
+                                        <TabsTrigger value="company" className="gap-2">
+                                            <Building2 className="w-4 h-4" />
+                                            By Company
+                                        </TabsTrigger>
+                                    </TabsList>
 
-                                {/* Selected Tags Display */}
-                                {searchTags.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {searchTags.map((tag) => (
-                                            <Badge key={tag} variant="secondary" className="gap-1">
-                                                {tag}
-                                                <button
-                                                    onClick={() => {
-                                                        setSearchTags(prev => prev.filter(t => t !== tag));
-                                                        // Auto-refresh search when removing tags
-                                                        setTimeout(() => handleSearch(), 0);
-                                                    }}
-                                                    className="ml-1 hover:text-destructive"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            </Badge>
-                                        ))}
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 px-2 text-xs"
-                                            onClick={() => { setSearchTags([]); setTimeout(() => handleSearch(), 0); }}
-                                        >
-                                            Clear all
-                                        </Button>
-                                    </div>
-                                )}
+                                    {/* General Search Tab */}
+                                    <TabsContent value="general" className="space-y-4 mt-4">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Search by title or slug..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                            />
+                                            <Select value={searchDifficulty} onValueChange={setSearchDifficulty}>
+                                                <SelectTrigger className="w-32">
+                                                    <SelectValue placeholder="Difficulty" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All</SelectItem>
+                                                    <SelectItem value="Easy">Easy</SelectItem>
+                                                    <SelectItem value="Medium">Medium</SelectItem>
+                                                    <SelectItem value="Hard">Hard</SelectItem>
+                                                </SelectContent>
+                                            </Select>
 
-                                <ScrollArea className="h-[400px]">
-                                    {isSearching ? (
-                                        <div className="space-y-3">
-                                            {Array.from({ length: 5 }).map((_, i) => (
-                                                <Skeleton key={i} className="h-16 rounded-lg" />
-                                            ))}
-                                        </div>
-                                    ) : searchResults.length === 0 ? (
-                                        <div className="text-center py-10 text-muted-foreground">
-                                            <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                            <p>Search for problems to add</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {searchResults.map((problem, index) => {
-                                                const isSelected = selectedProblems.some(
-                                                    (p) => p.slug === problem.title_slug
-                                                );
-                                                return (
-                                                    <div
-                                                        key={`${problem.title_slug}-${index}`}
-                                                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isSelected
-                                                            ? 'border-primary bg-primary/5'
-                                                            : 'border-border hover:border-primary/50'
-                                                            }`}
-                                                    >
-                                                        <div>
-                                                            <p className="font-medium text-sm">{problem.title}</p>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className={getDifficultyColor(problem.difficulty)}
-                                                                >
-                                                                    {problem.difficulty}
-                                                                </Badge>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {problem.title_slug}
-                                                                </span>
+                                            {/* Tag Selection Dialog */}
+                                            <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="outline" className="gap-2">
+                                                        <Tag className="w-4 h-4" />
+                                                        Tags {searchTags.length > 0 && `(${searchTags.length})`}
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Select Tags</DialogTitle>
+                                                        <DialogDescription>
+                                                            Select problem categories to filter by
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="space-y-4">
+                                                        <Input
+                                                            placeholder="Filter tags..."
+                                                            value={tagFilter}
+                                                            onChange={(e) => setTagFilter(e.target.value)}
+                                                        />
+                                                        <ScrollArea className="h-[300px]">
+                                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                                                {LEETCODE_TAGS
+                                                                    .filter(tag => tag.toLowerCase().includes(tagFilter.toLowerCase()))
+                                                                    .map((tag) => {
+                                                                        const isSelected = searchTags.includes(tag);
+                                                                        return (
+                                                                            <Button
+                                                                                key={tag}
+                                                                                variant={isSelected ? "default" : "outline"}
+                                                                                size="sm"
+                                                                                className="justify-start text-xs h-8"
+                                                                                onClick={() => {
+                                                                                    if (isSelected) {
+                                                                                        setSearchTags(prev => prev.filter(t => t !== tag));
+                                                                                    } else {
+                                                                                        setSearchTags(prev => [...prev, tag]);
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                {isSelected && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                                                                                {tag}
+                                                                            </Button>
+                                                                        );
+                                                                    })}
                                                             </div>
+                                                        </ScrollArea>
+                                                        <div className="flex justify-between">
+                                                            <Button variant="ghost" size="sm" onClick={() => setSearchTags([])}>
+                                                                Clear All
+                                                            </Button>
+                                                            <Button onClick={() => { setTagDialogOpen(false); handleSearch(); }}>
+                                                                Apply ({searchTags.length} selected)
+                                                            </Button>
                                                         </div>
-                                                        <Button
-                                                            variant={isSelected ? 'secondary' : 'default'}
-                                                            size="sm"
-                                                            onClick={() => !isSelected && addProblem(problem)}
-                                                            disabled={isSelected}
-                                                        >
-                                                            {isSelected ? (
-                                                                <>
-                                                                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                                                                    Added
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Plus className="w-4 h-4 mr-1" />
-                                                                    Add
-                                                                </>
-                                                            )}
-                                                        </Button>
                                                     </div>
-                                                );
-                                            })}
-                                            {/* Infinite scroll loader */}
-                                            <div ref={searchLoaderRef} className="py-2 flex justify-center">
-                                                {isLoadingMore && (
-                                                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                                </DialogContent>
+                                            </Dialog>
+
+                                            <Button onClick={handleSearch} disabled={isSearching}>
+                                                {isSearching ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Search className="w-4 h-4" />
                                                 )}
-                                            </div>
+                                            </Button>
                                         </div>
-                                    )}
-                                </ScrollArea>
+
+                                        {/* Selected Tags Display */}
+                                        {searchTags.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {searchTags.map((tag) => (
+                                                    <Badge key={tag} variant="secondary" className="gap-1">
+                                                        {tag}
+                                                        <button
+                                                            onClick={() => {
+                                                                setSearchTags(prev => prev.filter(t => t !== tag));
+                                                                // Auto-refresh search when removing tags
+                                                                setTimeout(() => handleSearch(), 0);
+                                                            }}
+                                                            className="ml-1 hover:text-destructive"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </Badge>
+                                                ))}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 px-2 text-xs"
+                                                    onClick={() => { setSearchTags([]); setTimeout(() => handleSearch(), 0); }}
+                                                >
+                                                    Clear all
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        <ScrollArea className="h-[400px]">
+                                            {isSearching ? (
+                                                <div className="space-y-3">
+                                                    {Array.from({ length: 5 }).map((_, i) => (
+                                                        <Skeleton key={i} className="h-16 rounded-lg" />
+                                                    ))}
+                                                </div>
+                                            ) : searchResults.length === 0 ? (
+                                                <div className="text-center py-10 text-muted-foreground">
+                                                    <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                                    <p>Search for problems to add</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {searchResults.map((problem, index) => {
+                                                        const isSelected = selectedProblems.some(
+                                                            (p) => p.slug === problem.title_slug
+                                                        );
+                                                        return (
+                                                            <div
+                                                                key={`${problem.title_slug}-${index}`}
+                                                                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isSelected
+                                                                    ? 'border-primary bg-primary/5'
+                                                                    : 'border-border hover:border-primary/50'
+                                                                    }`}
+                                                            >
+                                                                <div>
+                                                                    <p className="font-medium text-sm">{problem.title}</p>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <Badge
+                                                                            variant="secondary"
+                                                                            className={getDifficultyColor(problem.difficulty)}
+                                                                        >
+                                                                            {problem.difficulty}
+                                                                        </Badge>
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {problem.title_slug}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <Button
+                                                                    variant={isSelected ? 'secondary' : 'default'}
+                                                                    size="sm"
+                                                                    onClick={() => !isSelected && addProblem(problem)}
+                                                                    disabled={isSelected}
+                                                                >
+                                                                    {isSelected ? (
+                                                                        <>
+                                                                            <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                                            Added
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Plus className="w-4 h-4 mr-1" />
+                                                                            Add
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {/* Infinite scroll loader */}
+                                                    <div ref={searchLoaderRef} className="py-2 flex justify-center">
+                                                        {isLoadingMore && (
+                                                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </ScrollArea>
+                                    </TabsContent>
+
+                                    {/* Company Search Tab */}
+                                    <TabsContent value="company" className="mt-4">
+                                        <CompanySearchSection
+                                            onProblemAdd={addProblem}
+                                            selectedProblems={selectedProblems}
+                                        />
+                                    </TabsContent>
+                                </Tabs>
                             </CardContent>
                         </Card>
                     </motion.div>

@@ -189,7 +189,7 @@ function ProfileContent() {
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Contest Rating</p>
-                                                <p className="text-3xl font-bold">{contestRanking?.rating || '—'}</p>
+                                                <p className="text-3xl font-bold">{contestRanking?.rating.toFixed(2) || '—'}</p>
                                             </div>
                                             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                                                 <TrendingUp className="w-6 h-6 text-primary" />

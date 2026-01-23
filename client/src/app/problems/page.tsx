@@ -44,7 +44,15 @@ import {
     Tag,
     X,
     CheckCircle2,
+    Building2,
 } from 'lucide-react';
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs';
+import { CompanyProblemsView } from '@/components/company-problems-view';
 
 // Default tags for LeetCode problems
 const DEFAULT_TAGS = [
@@ -64,6 +72,7 @@ function ProblemsContent() {
     const [tagDialogOpen, setTagDialogOpen] = useState(false);
     const [tagFilter, setTagFilter] = useState('');
     const loaderRef = useRef<HTMLDivElement>(null);
+    const [searchTab, setSearchTab] = useState<'general' | 'company'>('general');
 
     // Auto-load problems on mount
     useEffect(() => {
@@ -160,7 +169,6 @@ function ProblemsContent() {
                     </p>
                 </motion.div>
 
-                {/* Search Controls */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -168,130 +176,151 @@ function ProblemsContent() {
                 >
                     <Card className="border-border mb-6">
                         <CardContent className="p-6">
-                            <div className="flex flex-col md:flex-row gap-4">
-                                <div className="flex-1">
-                                    <Input
-                                        placeholder="Search by problem title or slug..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                        className="h-12"
-                                    />
-                                </div>
-                                <Select value={difficulty} onValueChange={setDifficulty}>
-                                    <SelectTrigger className="w-full md:w-40 h-12">
-                                        <SelectValue placeholder="Difficulty" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All</SelectItem>
-                                        <SelectItem value="Easy">Easy</SelectItem>
-                                        <SelectItem value="Medium">Medium</SelectItem>
-                                        <SelectItem value="Hard">Hard</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <Tabs value={searchTab} onValueChange={(v) => setSearchTab(v as 'general' | 'company')}>
+                                <TabsList className="grid w-full grid-cols-2 mb-4">
+                                    <TabsTrigger value="general" className="gap-2">
+                                        <Search className="w-4 h-4" />
+                                        Search Problems
+                                    </TabsTrigger>
+                                    <TabsTrigger value="company" className="gap-2">
+                                        <Building2 className="w-4 h-4" />
+                                        By Company
+                                    </TabsTrigger>
+                                </TabsList>
 
-                                {/* Tag Selection Dialog */}
-                                <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" className="h-12 gap-2">
-                                            <Tag className="w-4 h-4" />
-                                            Tags {searchTags.length > 0 && `(${searchTags.length})`}
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-                                        <DialogHeader>
-                                            <DialogTitle>Select Tags</DialogTitle>
-                                            <DialogDescription>
-                                                Select problem categories to filter by
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4">
+                                {/* General Search Tab */}
+                                <TabsContent value="general" className="space-y-4 mt-0">
+                                    <div className="flex flex-col md:flex-row gap-4">
+                                        <div className="flex-1">
                                             <Input
-                                                placeholder="Filter tags..."
-                                                value={tagFilter}
-                                                onChange={(e) => setTagFilter(e.target.value)}
+                                                placeholder="Search by problem title or slug..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                                className="h-12"
                                             />
-                                            <ScrollArea className="h-[300px]">
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pr-4">
-                                                    {LEETCODE_TAGS
-                                                        .filter(tag => tag.toLowerCase().includes(tagFilter.toLowerCase()))
-                                                        .map((tag) => {
-                                                            const isSelected = searchTags.includes(tag);
-                                                            return (
-                                                                <Button
-                                                                    key={tag}
-                                                                    variant={isSelected ? "default" : "outline"}
-                                                                    size="sm"
-                                                                    className="justify-start text-xs h-8"
-                                                                    onClick={() => {
-                                                                        if (isSelected) {
-                                                                            setSearchTags(prev => prev.filter(t => t !== tag));
-                                                                        } else {
-                                                                            setSearchTags(prev => [...prev, tag]);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {isSelected && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                                                    {tag}
-                                                                </Button>
-                                                            );
-                                                        })}
-                                                </div>
-                                            </ScrollArea>
-                                            <div className="flex justify-between">
-                                                <Button variant="ghost" size="sm" onClick={() => setSearchTags([])}>
-                                                    Clear All
-                                                </Button>
-                                                <Button onClick={() => { setTagDialogOpen(false); handleSearch(); }}>
-                                                    Apply ({searchTags.length} selected)
-                                                </Button>
-                                            </div>
                                         </div>
-                                    </DialogContent>
-                                </Dialog>
+                                        <Select value={difficulty} onValueChange={setDifficulty}>
+                                            <SelectTrigger className="w-full md:w-40 h-12">
+                                                <SelectValue placeholder="Difficulty" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="Easy">Easy</SelectItem>
+                                                <SelectItem value="Medium">Medium</SelectItem>
+                                                <SelectItem value="Hard">Hard</SelectItem>
+                                            </SelectContent>
+                                        </Select>
 
-                                <Button onClick={() => handleSearch()} disabled={isLoading} className="h-12">
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                            Searching...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Search className="w-4 h-4 mr-2" />
-                                            Search
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
+                                        {/* Tag Selection Dialog */}
+                                        <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" className="h-12 gap-2">
+                                                    <Tag className="w-4 h-4" />
+                                                    Tags {searchTags.length > 0 && `(${searchTags.length})`}
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+                                                <DialogHeader>
+                                                    <DialogTitle>Select Tags</DialogTitle>
+                                                    <DialogDescription>
+                                                        Select problem categories to filter by
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="space-y-4">
+                                                    <Input
+                                                        placeholder="Filter tags..."
+                                                        value={tagFilter}
+                                                        onChange={(e) => setTagFilter(e.target.value)}
+                                                    />
+                                                    <ScrollArea className="h-[300px]">
+                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pr-4">
+                                                            {LEETCODE_TAGS
+                                                                .filter(tag => tag.toLowerCase().includes(tagFilter.toLowerCase()))
+                                                                .map((tag) => {
+                                                                    const isSelected = searchTags.includes(tag);
+                                                                    return (
+                                                                        <Button
+                                                                            key={tag}
+                                                                            variant={isSelected ? "default" : "outline"}
+                                                                            size="sm"
+                                                                            className="justify-start text-xs h-8"
+                                                                            onClick={() => {
+                                                                                if (isSelected) {
+                                                                                    setSearchTags(prev => prev.filter(t => t !== tag));
+                                                                                } else {
+                                                                                    setSearchTags(prev => [...prev, tag]);
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            {isSelected && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                                                                            {tag}
+                                                                        </Button>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                    </ScrollArea>
+                                                    <div className="flex justify-between">
+                                                        <Button variant="ghost" size="sm" onClick={() => setSearchTags([])}>
+                                                            Clear All
+                                                        </Button>
+                                                        <Button onClick={() => { setTagDialogOpen(false); handleSearch(); }}>
+                                                            Apply ({searchTags.length} selected)
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
 
-                            {/* Selected Tags Display */}
-                            {searchTags.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-4">
-                                    {searchTags.map((tag) => (
-                                        <Badge key={tag} variant="secondary" className="gap-1">
-                                            {tag}
-                                            <button
-                                                onClick={() => {
-                                                    setSearchTags(prev => prev.filter(t => t !== tag));
-                                                    setTimeout(() => handleSearch(), 0);
-                                                }}
-                                                className="ml-1 hover:text-destructive"
+                                        <Button onClick={() => handleSearch()} disabled={isLoading} className="h-12">
+                                            {isLoading ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                    Searching...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Search className="w-4 h-4 mr-2" />
+                                                    Search
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+
+                                    {/* Selected Tags Display */}
+                                    {searchTags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {searchTags.map((tag) => (
+                                                <Badge key={tag} variant="secondary" className="gap-1">
+                                                    {tag}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSearchTags(prev => prev.filter(t => t !== tag));
+                                                            setTimeout(() => handleSearch(), 0);
+                                                        }}
+                                                        className="ml-1 hover:text-destructive"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </Badge>
+                                            ))}
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 px-2 text-xs"
+                                                onClick={() => { setSearchTags([]); setTimeout(() => handleSearch(), 0); }}
                                             >
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        </Badge>
-                                    ))}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs"
-                                        onClick={() => { setSearchTags([]); setTimeout(() => handleSearch(), 0); }}
-                                    >
-                                        Clear all
-                                    </Button>
-                                </div>
-                            )}
+                                                Clear all
+                                            </Button>
+                                        </div>
+                                    )}
+                                </TabsContent>
+
+                                {/* Company Search Tab */}
+                                <TabsContent value="company" className="mt-0">
+                                    <CompanyProblemsView />
+                                </TabsContent>
+                            </Tabs>
                         </CardContent>
                     </Card>
                 </motion.div>
