@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ProtectedRoute, useAuth } from '@/lib/auth-context';
+import { ProtectedRoute, useAuthUser } from '@/components/auth/protected-route';
 import { profileApi, Profile, TagStats, ContestRanking, LeetCodeContestHistoryEntry } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 
 function ProfileContent() {
-    const { user } = useAuth();
+    const { user } = useAuthUser();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [tagStats, setTagStats] = useState<TagStats[]>([]);
     const [contestRanking, setContestRanking] = useState<ContestRanking | null>(null);
@@ -135,7 +135,7 @@ function ProfileContent() {
                                     <User className="w-10 h-10 text-primary" />
                                 </div>
                                 <div className="flex-1">
-                                    <h1 className="text-2xl md:text-3xl font-bold">{user?.username}</h1>
+                                    <h1 className="text-2xl md:text-3xl font-bold">{user?.name || user?.leetcode_username}</h1>
                                     <p className="text-muted-foreground">{user?.email}</p>
                                     <div className="flex items-center gap-4 mt-2">
                                         <a

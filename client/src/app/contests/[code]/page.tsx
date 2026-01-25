@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ProtectedRoute, useAuth } from '@/lib/auth-context';
+import { ProtectedRoute, useAuthUser } from '@/components/auth/protected-route';
 import { contestApi, syncApi, Contest, LeaderboardEntry, ProblemProgress } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,11 +33,12 @@ import {
     Loader2,
     AlertCircle,
 } from 'lucide-react';
+import ContestLeaderboard from '@/components/contest/contest-leaderboard';
 
 function ContestDetailContent() {
     const params = useParams();
     const code = params.code as string;
-    const { user } = useAuth();
+    const { user } = useAuthUser();
 
     const [contest, setContest] = useState<Contest | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -180,6 +181,11 @@ function ContestDetailContent() {
             loadContestData();
         } catch (error) {
             if (error instanceof Error && error.message.includes('wait')) {
+                // Extract cooldown time from error message
+                const match = error.message.match(/(\d+) seconds/);
+                if (match) {
+                    setSyncCooldown(parseInt(match[1]));
+                }
                 toast.warning(error.message);
             } else {
                 toast.error('Failed to sync');
@@ -204,9 +210,15 @@ function ContestDetailContent() {
                 setIsGracePeriod(false);
             }
 
+            // Reload contest to get updated syncAllCooldown
             loadContestData();
         } catch (error) {
             if (error instanceof Error && error.message.includes('wait')) {
+                // Extract cooldown time from error message
+                const match = error.message.match(/(\d+) seconds/);
+                if (match) {
+                    setSyncAllCooldown(parseInt(match[1]));
+                }
                 toast.warning(error.message);
             } else {
                 toast.error('Failed to sync all');
@@ -340,13 +352,13 @@ function ContestDetailContent() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={handleSyncAll}
-                                            disabled={isSyncingAll || syncAllCooldown > 0 || (contestStatus !== 'live' && !isGracePeriod)}
+                                            onClick={handleSync}
+                                            disabled={isSyncing || syncCooldown > 0 || (contestStatus !== 'live' && !isGracePeriod)}
                                         >
-                                            {isSyncingAll ? (
+                                            {isSyncing ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : syncAllCooldown > 0 ? (
-                                                `${syncAllCooldown}s`
+                                            ) : syncCooldown > 0 ? (
+                                                `${syncCooldown}s`
                                             ) : (
                                                 <RefreshCw className="w-4 h-4" />
                                             )}
@@ -383,7 +395,7 @@ function ContestDetailContent() {
                                                 {getStatusIcon(progress?.status || 'PENDING')}
                                                 <div>
                                                     <p className="text-sm font-medium">
-                                                        {index + 1}. {problem?.problem_id?.title ||problem.slug}
+                                                        {index + 1}. {problem?.problem_id?.title || problem.slug}
                                                     </p>
                                                     <p className={`text-xs ${getDifficultyColor(problem.points === 3 ? 'Easy' : problem.points === 4 ? 'Medium' : 'Hard')}`}>
                                                         +{problem.points} pts
@@ -413,136 +425,15 @@ function ContestDetailContent() {
                         transition={{ delay: 0.2 }}
                         className="lg:col-span-2"
                     >
-                        <Card className="border-border">
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Trophy className="w-5 h-5 text-primary" />
-                                            Leaderboard
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Live rankings based on score and time
-                                        </CardDescription>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleSyncAll}
-                                        disabled={isSyncingAll || contestStatus !== 'live' || syncAllCooldown > 0}
-                                    >
-                                        {isSyncingAll ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                Syncing...
-                                            </>
-                                        ) : syncAllCooldown > 0 ? (
-                                            <>
-                                                <RefreshCw className="w-4 h-4 mr-2" />
-                                                {Math.floor(syncAllCooldown / 60)}:{(syncAllCooldown % 60).toString().padStart(2, '0')}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <RefreshCw className="w-4 h-4 mr-2" />
-                                                Sync All
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <ScrollArea className="h-[500px] w-full border rounded-md">
-                                    {leaderboard.length === 0 ? (
-                                        <div className="text-center py-10 text-muted-foreground">
-                                            <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                            <p>No participants yet</p>
-                                        </div>
-                                    ) : (
-                                        <Table>
-                                            <TableHeader className="sticky top-0 bg-card z-10">
-                                                <TableRow className="hover:bg-transparent">
-                                                    <TableHead className="w-12 font-bold">Rank</TableHead>
-                                                    <TableHead className="w-40 font-bold">User</TableHead>
-                                                    {contest?.problems.map((prob, idx) => (
-                                                        <TableHead
-                                                            key={idx}
-                                                            className="text-center min-w-[90px] px-2"
-                                                            title={prob.slug}
-                                                        >
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="font-bold">Q{idx + 1}</span>
-                                                                <span className="text-[10px] font-normal text-muted-foreground">
-                                                                    +{prob.points}pts
-                                                                </span>
-                                                            </div>
-                                                        </TableHead>
-                                                    ))}
-                                                    <TableHead className="text-right font-bold">Score</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {leaderboard.map((entry) => {
-                                                    const isCurrentUser = entry.leetcode_username === user?.leetcode_username;
-                                                    return (
-                                                        <TableRow key={entry.username} className={isCurrentUser ? 'bg-primary/5' : ''}>
-                                                            <TableCell className="font-medium p-2">
-                                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${entry.rank === 1 ? 'bg-yellow-500 text-black' :
-                                                                    entry.rank === 2 ? 'bg-gray-300 text-black' :
-                                                                        entry.rank === 3 ? 'bg-amber-700 text-white' :
-                                                                            'bg-secondary text-foreground'
-                                                                    }`}>
-                                                                    {entry.rank}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="p-2">
-                                                                <div className="flex flex-col">
-                                                                    <span className={`font-medium ${isCurrentUser ? 'text-primary' : ''}`}>
-                                                                        {entry.username}
-                                                                        {isCurrentUser && " (You)"}
-                                                                    </span>
-                                                                    <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={entry.leetcode_username}>
-                                                                        {entry.leetcode_username}
-                                                                    </span>
-                                                                </div>
-                                                            </TableCell>
-                                                            {contest?.problems.map((prob) => {
-                                                                const progress = entry.problem_progress?.find(p => p.slug === prob.slug);
-                                                                return (
-                                                                    <TableCell key={prob.slug} className="text-center p-1" title={prob.slug}>
-                                                                        {progress?.status === 'ACCEPTED' ? (
-                                                                            <div className="bg-green-500/15 border border-green-500/30 text-green-500 rounded-md p-1.5 mx-auto inline-flex flex-col items-center min-w-[70px]">
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <CheckCircle2 className="w-3 h-3" />
-                                                                                    <span className="font-bold text-xs">{formatSolveTime(progress.solved_at)}</span>
-                                                                                </div>
-                                                                                {progress.fail_count > 0 && (
-                                                                                    <span className="text-[10px] text-red-400">-{progress.fail_count}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        ) : progress && progress.fail_count > 0 ? (
-                                                                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-md p-1.5 mx-auto inline-flex items-center gap-1 min-w-[50px]">
-                                                                                <XCircle className="w-3 h-3" />
-                                                                                <span className="text-xs font-medium">-{progress.fail_count}</span>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="text-muted-foreground/30 text-lg">—</div>
-                                                                        )}
-                                                                    </TableCell>
-                                                                );
-                                                            })}
-                                                            <TableCell className="text-right p-2">
-                                                                <div className="font-bold">{entry.score}</div>
-                                                                <div className="text-xs text-muted-foreground">{entry.penalty}</div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </TableBody>
-                                        </Table>
-                                    )}
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
+                        <ContestLeaderboard
+                            leaderboard={leaderboard}
+                            contest={contest}
+                            currentUserLeetcode={user?.leetcode_username}
+                            isSyncing={isSyncingAll}
+                            syncCooldown={syncAllCooldown}
+                            contestStatus={contestStatus}
+                            onSyncAll={handleSyncAll}
+                        />
                     </motion.div>
                 </div>
             </div>

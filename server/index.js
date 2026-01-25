@@ -10,6 +10,8 @@ const problemRoutes = require('./routes/problems');
 const profileRoutes = require('./routes/profile');
 const botRoutes = require('./routes/bot');
 const companiesRoutes = require('./routes/companies');
+const onboardingRoutes = require('./routes/onboarding');
+const userRoutes = require('./routes/user');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,7 +55,9 @@ app.get('/', (req, res) => {
             problems: '/api/problems',
             profile: '/api/profile',
             bot: '/api/bot',
-            companies: '/api/companies'
+            companies: '/api/companies',
+            onboarding: '/api/onboarding',
+            user: '/api/user'
         }
     });
 });
@@ -65,6 +69,8 @@ app.use('/api/problems', problemRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/bot', botRoutes);
 app.use('/api/companies', companiesRoutes);
+app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/user', userRoutes);
 
 app.use((err, req, res, next) => {
     console.error('Server Error:', err);

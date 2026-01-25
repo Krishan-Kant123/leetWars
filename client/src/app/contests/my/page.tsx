@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ProtectedRoute } from '@/lib/auth-context';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 import { contestApi, Contest } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

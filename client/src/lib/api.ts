@@ -1,7 +1,34 @@
+import { getSession } from "next-auth/react";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// Helper to get auth token
-const getToken = (): string | null => {
+// Storage for the current session token (set by components that have access to session)
+let cachedBackendToken: string | null = null;
+
+// Set the backend token from NextAuth session
+export const setBackendToken = (token: string | null) => {
+    cachedBackendToken = token;
+};
+
+// Helper to get auth token - prioritizes NextAuth session over legacy localStorage
+const getToken = async (): Promise<string | null> => {
+    // First try the cached backend token (from NextAuth session)
+    if (cachedBackendToken) {
+        return cachedBackendToken;
+    }
+
+    // Try to get from NextAuth session
+    try {
+        const session = await getSession();
+        if (session && (session as any).backendToken) {
+            cachedBackendToken = (session as any).backendToken;
+            return cachedBackendToken;
+        }
+    } catch {
+        // Session might not be available in some contexts
+    }
+
+    // Fallback to legacy localStorage token
     if (typeof window !== 'undefined') {
         return localStorage.getItem('leetwars_token');
     }
@@ -10,7 +37,7 @@ const getToken = (): string | null => {
 
 // Helper to make authenticated requests
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const token = getToken();
+    const token = await getToken();
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

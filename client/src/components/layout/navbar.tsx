@@ -4,7 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@/lib/auth-context';
+import { useSession, signOut } from 'next-auth/react';
+import { setBackendToken } from '@/lib/api';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,7 +13,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     LayoutDashboard,
@@ -39,13 +40,22 @@ const navItems = [
 ];
 
 export function Navbar() {
-    const { user, logout, isAuthenticated } = useAuth();
+    const { data: session, status } = useSession();
     const pathname = usePathname();
     const router = useRouter();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [isNavigating, setIsNavigating] = useState(false);
     const [targetPath, setTargetPath] = useState<string | null>(null);
+
+    // Set the backend token when session is available
+    useEffect(() => {
+        if (session && (session as any).backendToken) {
+            setBackendToken((session as any).backendToken);
+        } else {
+            setBackendToken(null);
+        }
+    }, [session]);
 
     // Reset navigation state when pathname changes
     useEffect(() => {
@@ -65,7 +75,19 @@ export function Navbar() {
         });
     };
 
-    if (!isAuthenticated) return null;
+    const handleLogout = async () => {
+        setBackendToken(null);
+        await signOut({ callbackUrl: '/login' });
+    };
+
+    // Don't show navbar if not authenticated or still loading
+    if (status === 'loading') return null;
+    if (!session) return null;
+
+    // Get user display info
+    const user = session.user;
+    const displayName = user?.name || (user as any)?.leetcode_username || user?.email?.split('@')[0] || 'User';
+    const avatarFallback = displayName.charAt(0).toUpperCase();
 
     const showLoading = isPending || isNavigating;
 
@@ -161,8 +183,11 @@ export function Navbar() {
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                                         <Avatar className="h-10 w-10 border-2 border-primary">
+                                            {user?.image && (
+                                                <AvatarImage src={user.image} alt={displayName} />
+                                            )}
                                             <AvatarFallback className="bg-secondary text-foreground">
-                                                {user?.username?.charAt(0).toUpperCase() || 'U'}
+                                                {avatarFallback}
                                             </AvatarFallback>
                                         </Avatar>
                                     </Button>
@@ -170,7 +195,7 @@ export function Navbar() {
                                 <DropdownMenuContent className="w-56" align="end">
                                     <div className="flex items-center justify-start gap-2 p-2">
                                         <div className="flex flex-col space-y-1">
-                                            <p className="text-sm font-medium">{user?.username}</p>
+                                            <p className="text-sm font-medium">{displayName}</p>
                                             <p className="text-xs text-muted-foreground">{user?.email}</p>
                                         </div>
                                     </div>
@@ -187,7 +212,7 @@ export function Navbar() {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                         className="cursor-pointer text-destructive focus:text-destructive"
-                                        onClick={logout}
+                                        onClick={handleLogout}
                                     >
                                         <LogOut className="mr-2 h-4 w-4" />
                                         Log out

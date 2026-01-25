@@ -1,4 +1,5 @@
 const axios = require('axios');
+const cache = require('../utils/cache');
 
 const LEETCODE_API_ENDPOINT = 'https://leetcode.com/graphql';
 
@@ -317,6 +318,14 @@ const searchProblemsOnLeetCode = async (filters = {}) => {
  */
 const getUserProfile = async (username) => {
     try {
+        // Check cache first
+        const cacheKey = `leetcode_profile_${username}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+            console.log(`Cache hit for profile: ${username}`);
+            return cached;
+        }
+
         console.log(`Fetching LeetCode profile for: ${username}`);
 
         const response = await axios.post(LEETCODE_API_ENDPOINT, {
@@ -351,7 +360,7 @@ const getUserProfile = async (username) => {
         }
         console.log(`Profile fetched successfully`);
 
-        return {
+        const result = {
             username: data.matchedUser.username,
             profile: data.matchedUser.profile || {},
             solvedStats: {
@@ -369,6 +378,12 @@ const getUserProfile = async (username) => {
             contestRanking: data.userContestRanking || null
         };
 
+        // Cache the result for 2.5 hours
+        cache.set(cacheKey, result, 9000);
+        console.log(` Cached profile for: ${username}`);
+
+        return result;
+
     } catch (error) {
         console.error('Error fetching user profile:', error.message);
         throw new Error('Failed to fetch user profile: ' + error.message);
@@ -382,6 +397,14 @@ const getUserProfile = async (username) => {
  */
 const getUserSolvedByTags = async (username) => {
     try {
+        // Check cache first
+        const cacheKey = `leetcode_tags_${username}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+            console.log(` Cache hit for tags: ${username}`);
+            return cached;
+        }
+
         console.log(`Fetching tag stats for: ${username}`);
 
         const response = await axios.post(LEETCODE_API_ENDPOINT, {
@@ -414,6 +437,10 @@ const getUserSolvedByTags = async (username) => {
 
         console.log(`Tag stats fetched: ${allTags.length} tags`);
 
+        // Cache the result for 2.5 hours
+        cache.set(cacheKey, allTags, 9000);
+        console.log(` Cached tags for: ${username}`);
+
         return allTags;
 
     } catch (error) {
@@ -429,7 +456,15 @@ const getUserSolvedByTags = async (username) => {
  */
 const getUserContestHistory = async (username) => {
     try {
-        console.log(`📈 Fetching contest history for: ${username}`);
+        // Check cache first
+        const cacheKey = `leetcode_contests_${username}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+            console.log(`Cache hit for contests: ${username}`);
+            return cached;
+        }
+
+        console.log(`Fetching contest history for: ${username}`);
 
         const response = await axios.post(LEETCODE_API_ENDPOINT, {
             query: USER_CONTEST_HISTORY_QUERY,
@@ -444,10 +479,12 @@ const getUserContestHistory = async (username) => {
 
         if (!data.userContestRanking) {
             // User hasn't participated in any contests
-            return {
+            const emptyResult = {
                 contestRanking: null,
                 contestHistory: []
             };
+            cache.set(cacheKey, emptyResult, 9000);
+            return emptyResult;
         }
 
         const history = data.userContestRankingHistory || [];
@@ -467,10 +504,16 @@ const getUserContestHistory = async (username) => {
 
         console.log(`Contest history fetched: ${attendedContests.length} contests`);
 
-        return {
+        const result = {
             contestRanking: data.userContestRanking,
             contestHistory: attendedContests
         };
+
+        // Cache the result for 2.5 hours
+        cache.set(cacheKey, result, 9000);
+        console.log(` Cached contests for: ${username}`);
+
+        return result;
 
     } catch (error) {
         console.error('Error fetching contest history:', error.message);

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ProtectedRoute } from '@/lib/auth-context';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 import { contestApi, problemApi, ProblemData, Problem } from '@/lib/api';
 import { LEETCODE_TAGS } from '@/lib/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { useAuth, ProtectedRoute } from '@/lib/auth-context';
+import { ProtectedRoute, useAuthUser } from '@/components/auth/protected-route';
 import { contestApi, profileApi, Contest } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 
 function DashboardContent() {
-    const { user } = useAuth();
+    const { user } = useAuthUser();
     const [stats, setStats] = useState<{
         createdContests: number;
         participatedContests: number;
@@ -139,7 +139,7 @@ function DashboardContent() {
                     className="mb-8"
                 >
                     <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                        Welcome back, <span className="text-primary">{user?.username}</span>!
+                        Welcome back, <span className="text-primary">{user?.name || user?.leetcode_username}</span>!
                     </h1>
                     <p className="text-muted-foreground">
                         Ready to compete? Create or join a contest to get started.
