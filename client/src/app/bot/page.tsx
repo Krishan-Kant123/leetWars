@@ -151,7 +151,7 @@ function BotContent() {
                     break;
                 case 'roast':
                     addMessage('user', '🔥 Roast my LeetCode profile');
-                    const roastRes = await botApi.roast('medium');
+                    const roastRes = await botApi.roast('brutal');
                     response = roastRes.roast;
                     break;
                 case 'suggestions':

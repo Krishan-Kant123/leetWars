@@ -71,7 +71,7 @@ Keep it concise and motivating.`;
 /**
  * Generate a roast based on user stats
  */
-const generateRoast = async (userStats, severity = 'medium') => {
+const generateRoast = async (userStats, severity = 'brutal') => {
     const { solvedStats, totalProblems, tagStats, contestRanking } = userStats;
 
     const totalSolved = solvedStats.easy + solvedStats.medium + solvedStats.hard;
@@ -81,28 +81,53 @@ const generateRoast = async (userStats, severity = 'medium') => {
 
     let intensityPrompt = '';
     if (severity === 'mild') {
-        intensityPrompt = 'Be playful and light-hearted. Make it funny but not too harsh.';
+        intensityPrompt = `Be playful and light-hearted. Use gentle teasing like a friend would. 
+Include coding memes and relatable references. Make it funny but wholesome.
+Length: 4-5 sentences with emojis.`;
     } else if (severity === 'medium') {
-        intensityPrompt = 'Be witty and moderately savage. Make them laugh while feeling the burn.';
+        intensityPrompt = `Go SAVAGE but hilarious! Use Gen-Z slang, coding culture references, and brutal honesty.
+Think: "Your code is giving 'copy-paste from Stack Overflow' energy 💀"
+Be witty, use comparisons, and roast their weak spots HARD. Make them laugh while crying.
+Include at least 2-3 specific roasts about their stats.
+Length: 6-8 sentences with plenty of emojis and slang (fr, ngl, bro, bestie, etc).`;
     } else {
-        intensityPrompt = 'Go full savage mode! Brutally honest, hilariously mean, but still motivating at the end.';
+        intensityPrompt = `ABSOLUTELY UNHINGED SAVAGE MODE! 🔥 
+Go FULL ROAST - no mercy, maximum chaos, peak comedy!
+Use:
+- Gen-Z slang (fr, ngl, bestie, bro, sis, deadass, cap, bussin, mid, etc)
+- Coding memes (skill issue, L + ratio, touch grass, "it's giving...", etc)
+- Brutal comparisons (slower than Internet Explorer, easier than FizzBuzz, etc)
+- Personal callouts based on their stats
+- Exaggerated reactions (💀😭🤡)
+
+Roast EVERYTHING: their easy problem addiction, contest avoidance, hard problem fear, favorite topics, etc.
+Make it SO savage they screenshot it to show their friends.
+BUT end with genuine motivation that hits different.
+Length: 8-12 sentences, LOADED with emojis and personality.`;
     }
 
-    const systemPrompt = 'You are a savage but roast bot for LeetCode users. Roast them based on their stats but end with motivation.';
+    const systemPrompt = `You are the most SAVAGE roast bot for LeetCode users. Your roasts are legendary - brutal, hilarious, and oddly motivating. 
+You understand coding culture, Gen-Z humor, and how to roast someone so hard they can't help but laugh and improve.
+Use modern slang, memes, and relatable references. Make every roast unique and personal based on their stats.`;
 
-    const userPrompt = `Roast this user:
+    const userPrompt = `ROAST this LeetCode user based on their stats:
 
-Stats:
-- Total Solved: ${totalSolved}
-- Easy: ${solvedStats.easy}/${totalProblems.easy} (${easyPercent}%)
+📊 Stats Breakdown:
+- Total Solved: ${totalSolved} problems
+- Easy: ${solvedStats.easy}/${totalProblems.easy} (${easyPercent}%) 
 - Medium: ${solvedStats.medium}/${totalProblems.medium} (${mediumPercent}%)
 - Hard: ${solvedStats.hard}/${totalProblems.hard} (${hardPercent}%)
-- Contest Rating: ${contestRanking?.rating || 'Never participated '}
-- Favorite Topics: ${tagStats?.slice(0, 3).map(t => t.tagName).join(', ')}
+- Contest Rating: ${contestRanking?.rating || 'Never participated (scared much? 💀)'}
+- Favorite Topics: ${tagStats?.slice(0, 3).map(t => t.tagName).join(', ') || 'None (yikes)'}
 
 ${intensityPrompt}
 
-Generate a 3-4 sentence roast. Include emojis. End with a motivational challenge.`;
+IMPORTANT: 
+- Be SPECIFIC about their stats (call out low percentages, easy problem addiction, contest avoidance, etc)
+- Use comparisons and exaggerations for comedy
+- Include emojis throughout (💀😭🤡🔥👀 etc)
+- End with a motivational challenge that actually inspires them
+- Make it feel personal and relatable, not generic`;
 
     const messages = [{ role: 'user', content: userPrompt }];
 
@@ -115,14 +140,26 @@ Generate a 3-4 sentence roast. Include emojis. End with a motivational challenge
 const chatWithBot = async (userMessage, userStats, conversationHistory = []) => {
     const { solvedStats, totalProblems, tagStats, contestRanking } = userStats;
 
-    const systemPrompt = `You are a helpful LeetCode coaching AI. You have access to the user's stats:
+    const systemPrompt = `You are a helpful LeetCode coaching AI assistant. You have access to the user's stats:
 - Easy: ${solvedStats.easy}/${totalProblems.easy}
 - Medium: ${solvedStats.medium}/${totalProblems.medium}
 - Hard: ${solvedStats.hard}/${totalProblems.hard}
 - Contest Rating: ${contestRanking?.rating || 'Not participated'}
 - Strong Topics: ${tagStats?.slice(0, 5).map(t => t.tagName).join(', ')}
 
-Answer questions about their progress, give advice, and provide study recommendations. Be encouraging and specific.`;
+IMPORTANT RULES:
+1. ONLY answer questions related to:
+   - LeetCode problems, progress, and statistics
+   - Coding, algorithms, and data structures
+   - Programming concepts and problem-solving strategies
+   - Contest preparation and competitive programming
+   - This platform (LeetWars) and its features
+   
+2. If the user asks about ANYTHING ELSE (politics, sports, general knowledge, personal advice, etc.), respond with:
+   "I'm sorry, but I can only help with LeetCode-related questions, coding problems, algorithms, and platform features. Please ask me something related to your coding journey! 🚀"
+
+3. Be encouraging, specific, and helpful for on-topic questions.
+4. Use the user's stats to provide personalized advice.`;
 
     const messages = [
         ...conversationHistory,

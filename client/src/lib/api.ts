@@ -388,7 +388,7 @@ export const botApi = {
         return handleResponse<{ analysis: string; stats: unknown; generatedAt: string }>(response);
     },
 
-    roast: async (severity: 'mild' | 'medium' | 'brutal' = 'medium') => {
+    roast: async (severity: 'mild' | 'medium' | 'brutal') => {
         const response = await fetchWithAuth(`/bot/roast?severity=${severity}`);
         return handleResponse<{
             roast: string;
