@@ -219,15 +219,28 @@ const getProblemData = async (titleSlug) => {
 };
 
 /**
- * Check if a LeetCode username is valid and has public submissions
+ * Check if a LeetCode username is valid and has a public profile
  * @param {string} username - LeetCode username
  * @returns {Promise<boolean>} - True if valid and public
  */
 const validateLeetCodeUsername = async (username) => {
     try {
-        const submissions = await getRecentSubmissions(username, 1);
-        return true; // If we can fetch submissions, the profile is public
+        // Try to fetch the user's profile
+        const profile = await getUserProfile(username);
+        
+        // Check if profile exists and has valid data
+        if (!profile || !profile.username) {
+            return false;
+        }
+        
+        // Verify the username matches (case-insensitive)
+        if (profile.username.toLowerCase() !== username.toLowerCase()) {
+            return false;
+        }
+        
+        return true; // Profile exists and is valid
     } catch (error) {
+        console.error(`Failed to validate LeetCode username ${username}:`, error.message);
         return false;
     }
 };

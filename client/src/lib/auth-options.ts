@@ -10,17 +10,22 @@ export const authOptions: NextAuthOptions = {
     adapter: MongoDBAdapter(clientPromise, {
         databaseName: "leetcode",
         collections: {
-            Users: "users", // Map to existing users collection
+            Users: "users",
+            Accounts: "accounts",
+            Sessions: "sessions",
+            VerificationTokens: "verification_tokens"
         },
     }),
     providers: [
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            allowDangerousEmailAccountLinking: true,
         }),
         GitHubProvider({
             clientId: process.env.GITHUB_CLIENT_ID!,
             clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+            allowDangerousEmailAccountLinking: true,
         }),
     ],
     session: {
@@ -37,20 +42,20 @@ export const authOptions: NextAuthOptions = {
             }
 
             // On session update (e.g., after completing profile or updating name), refetch user data
-            if (trigger === "update") {
+            // The allowDangerousEmailAccountLinking setting prevents OAuthAccountNotLinked errors
+            if (trigger === "update" && token.sub) {
                 try {
                     const client = await clientPromise;
                     const db = client.db("leetcode");
                     const dbUser = await db.collection("users").findOne({
-                        _id: new ObjectId(token.sub!)
+                        _id: new ObjectId(token.sub)
                     });
                     if (dbUser) {
-                        console.log(dbUser)
                         token.userName = dbUser.name || null;
                         token.leetcode_username = dbUser.leetcode_username || null;
                     }
                 } catch (error) {
-                    console.error("Error fetching user for token:", error);
+                    console.error("Error fetching user data on session update:", error);
                 }
             }
 

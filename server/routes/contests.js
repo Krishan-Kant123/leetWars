@@ -66,6 +66,59 @@ router.post('/create', authMiddleware, async (req, res) => {
         
         const endDate = new Date(startDate.getTime() + duration * 60000);
 
+        console.log('payload:', JSON.stringify(req.body));
+
+        // Process problems: create any that don't exist in the database
+        const processedProblems = [];
+        for (const p of problems) {
+            let problemId;
+            
+            // Extract the actual ObjectId from problem_id
+            if (typeof p.problem_id === 'object' && p.problem_id !== null) {
+                problemId = p.problem_id._id;
+            } else {
+                problemId = p.problem_id;
+            }
+
+            // If problem doesn't have an ID, create it in the database
+            if (!problemId) {
+                try {
+                    // Check if problem already exists by slug
+                    let existingProblem = await Problem.findOne({ title_slug: p.slug });
+                    
+                    if (existingProblem) {
+                        problemId = existingProblem._id;
+                    } else {
+                        // Create new problem
+                        const newProblem = new Problem({
+                            title: p.title,
+                            title_slug: p.slug,
+                            difficulty: p.difficulty || 'Medium',
+                            tags: []
+                        });
+                        await newProblem.save();
+                        problemId = newProblem._id;
+                        console.log(`Created new problem: ${p.title} (${problemId})`);
+                    }
+                } catch (error) {
+                    console.error(`Failed to create problem ${p.title}:`, error);
+                    continue; // Skip this problem
+                }
+            }
+
+            processedProblems.push({
+                problem_id: problemId,
+                slug: p.slug,
+                points: p.points || 1
+            });
+        }
+
+        if (processedProblems.length === 0) {
+            return res.status(400).json({
+                message: 'No valid problems could be processed'
+            });
+        }
+
         // Create contest
         const contest = new Contest({
             unique_code,
@@ -75,11 +128,7 @@ router.post('/create', authMiddleware, async (req, res) => {
             end_time: endDate,
             duration,
             isPublic,
-            problems: problems.map(p => ({
-                problem_id: p.problem_id,
-                slug: p.slug,
-                points: p.points || 1
-            })),
+            problems: processedProblems,
             participants: []
         });
 
