@@ -46,6 +46,10 @@ const participationSchema = new mongoose.Schema({
     }],
     last_sync: {
         type: Date
+    },
+    finish_time: {
+        type: Number,  // in seconds from contest start (includes fail penalties)
+        default: 0
     }
 });
 

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { setBackendToken } from '@/lib/api';
 
 interface User {
     id: string;
@@ -31,29 +33,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
 
-    // Load auth state from localStorage on mount
+    // NextAuth session
+    const { data: session, status: sessionStatus } = useSession();
+
     useEffect(() => {
+        // If NextAuth session has a backendToken, use it (OAuth users)
+        if (sessionStatus === 'loading') return;
+
+        if (session && (session as any).backendToken) {
+            const backendToken = (session as any).backendToken as string;
+            // Sync the backend token into the api.ts module
+            setBackendToken(backendToken);
+
+            // Build a user object from the NextAuth session
+            const sessionUser: User = {
+                id: (session.user as any)?.id || '',
+                username: (session.user as any)?.name || session.user?.email || '',
+                email: session.user?.email || '',
+                leetcode_username: (session.user as any)?.leetcode_username || '',
+            };
+
+            setToken(backendToken);
+            setUser(sessionUser);
+            setIsLoading(false);
+            return;
+        }
+
+        // Fallback: legacy localStorage token (email/password login)
         const storedToken = localStorage.getItem(TOKEN_KEY);
         const storedUser = localStorage.getItem(USER_KEY);
 
-        if (storedToken && storedUser) {
+        if (storedToken && storedUser && storedToken !== 'undefined' && storedToken !== 'null' && storedUser !== 'undefined') {
             try {
+                const parsedUser = JSON.parse(storedUser);
                 setToken(storedToken);
-                setUser(JSON.parse(storedUser));
+                setUser(parsedUser);
+                setBackendToken(storedToken);
             } catch (error) {
                 console.error('Error parsing stored user:', error);
                 localStorage.removeItem(TOKEN_KEY);
                 localStorage.removeItem(USER_KEY);
             }
         }
+
         setIsLoading(false);
-    }, []);
+    }, [session, sessionStatus]);
 
     // Redirect based on auth state
     useEffect(() => {
         if (isLoading) return;
 
-        const publicPaths = ['/', '/login', '/register'];
+        const publicPaths = ['/', '/login', '/register', '/complete-profile'];
         const isPublicPath = publicPaths.includes(pathname);
 
         if (!token && !isPublicPath) {
@@ -68,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(USER_KEY, JSON.stringify(newUser));
         setToken(newToken);
         setUser(newUser);
+        setBackendToken(newToken);
         router.push('/dashboard');
     };
 
@@ -76,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(USER_KEY);
         setToken(null);
         setUser(null);
+        setBackendToken(null);
         router.push('/login');
     };
 
@@ -103,7 +135,7 @@ export function useAuth() {
     return context;
 }
 
-// Protected route wrapper component
+// Protected route wrapper component (legacy — prefer components/auth/protected-route.tsx)
 export function ProtectedRoute({ children }: { children: ReactNode }) {
     const { isLoading, isAuthenticated } = useAuth();
 

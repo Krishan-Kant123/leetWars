@@ -131,4 +131,84 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// OAuth Upsert (called by NextAuth to ensure user exists in MongoDB)
+router.post('/oauth-upsert', async (req, res) => {
+    try {
+        const { email, name, image } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // Create new user for OAuth
+            // Use a random password since they use OAuth
+            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+            const salt = await bcrypt.genSalt(10);
+            const password_hash = await bcrypt.hash(randomPassword, salt);
+
+            // Generate a unique username if name is not provided
+            const baseUsername = name ? name.replace(/\s+/g, '').toLowerCase() : email.split('@')[0];
+            let username = baseUsername;
+            let counter = 1;
+            while (await User.findOne({ username })) {
+                username = `${baseUsername}${counter}`;
+                counter++;
+            }
+
+            user = new User({
+                username,
+                email,
+                password_hash,
+                leetcode_username: '' // To be filled during onboarding
+            });
+
+            await user.save();
+        }
+
+        res.json({
+            message: 'User upserted successfully',
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                leetcode_username: user.leetcode_username
+            }
+        });
+    } catch (error) {
+        console.error('OAuth upsert error:', error);
+        res.status(500).json({ message: 'Server error during OAuth upsert' });
+    }
+});
+
+// Get user by email (called by NextAuth jwt callback)
+router.get('/user-by-email', async (req, res) => {
+    try {
+        const { email } = req.query;
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({
+            user: {
+                id: user._id,
+                name: user.username,
+                leetcode_username: user.leetcode_username
+            }
+        });
+    } catch (error) {
+        console.error('User by email error:', error);
+        res.status(500).json({ message: 'Server error fetching user by email' });
+    }
+});
+
 module.exports = router;

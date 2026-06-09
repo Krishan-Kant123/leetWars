@@ -50,6 +50,7 @@ interface LeaderboardProps {
     isSyncing: boolean;
     syncCooldown: number;
     contestStatus: 'upcoming' | 'live' | 'ended';
+    isGracePeriod?: boolean;
     onSyncAll: () => void;
 }
 
@@ -88,8 +89,11 @@ const ContestLeaderboard = memo(({
     isSyncing,
     syncCooldown,
     contestStatus,
+    isGracePeriod = false,
     onSyncAll
 }: LeaderboardProps) => {
+    const canSyncAll = contestStatus === 'live' || isGracePeriod;
+    const syncAllDisabled = isSyncing || !canSyncAll || syncCooldown > 0;
     if (!contest) return null;
 
     return (
@@ -100,16 +104,24 @@ const ContestLeaderboard = memo(({
                         <CardTitle className="flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-primary" />
                             Leaderboard
+                            {isGracePeriod && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                                    Grace Period
+                                </span>
+                            )}
                         </CardTitle>
                         <CardDescription>
-                            Live rankings based on score and time
+                            {isGracePeriod
+                                ? 'Grace period — final syncs allowed before rankings lock'
+                                : 'Live rankings based on score and time'}
                         </CardDescription>
                     </div>
                     <Button
-                        variant="outline"
+                        variant={isGracePeriod ? 'default' : 'outline'}
                         size="sm"
                         onClick={onSyncAll}
-                        disabled={isSyncing || contestStatus !== 'live' || syncCooldown > 0}
+                        disabled={syncAllDisabled}
+                        className={isGracePeriod ? 'bg-amber-500 hover:bg-amber-600 text-black border-amber-500' : ''}
                     >
                         {isSyncing ? (
                             <>
@@ -124,7 +136,7 @@ const ContestLeaderboard = memo(({
                         ) : (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2" />
-                                Sync All
+                                {isGracePeriod ? 'Final Sync All' : 'Sync All'}
                             </>
                         )}
                     </Button>

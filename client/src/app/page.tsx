@@ -39,10 +39,7 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 border border-border mb-8">
-              <Zap className="w-4 h-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Competitive Coding Reimagined</span>
-            </div>
+
 
             <h1 className="text-5xl md:text-7xl font-bold mb-6">
               <span className="text-foreground">Battle on </span>
