@@ -40,7 +40,7 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}): Promi
     const token = await getToken();
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(token && token !== 'undefined' && token !== 'null' ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
     };
 

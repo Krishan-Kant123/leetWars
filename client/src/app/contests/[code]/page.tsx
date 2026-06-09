@@ -432,6 +432,7 @@ function ContestDetailContent() {
                             isSyncing={isSyncingAll}
                             syncCooldown={syncAllCooldown}
                             contestStatus={contestStatus}
+                            isGracePeriod={isGracePeriod}
                             onSyncAll={handleSyncAll}
                         />
                     </motion.div>

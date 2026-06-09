@@ -24,8 +24,8 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         }
 
         if (!contest) {
-            return res.status(404).json({ 
-                message: 'Contest not found' 
+            return res.status(404).json({
+                message: 'Contest not found'
             });
         }
 
@@ -36,8 +36,8 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         });
 
         if (!participation) {
-            return res.status(404).json({ 
-                message: 'You are not enrolled in this contest' 
+            return res.status(404).json({
+                message: 'You are not enrolled in this contest'
             });
         }
 
@@ -45,8 +45,8 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         if (participation.last_sync) {
             const timeSinceLastSync = Date.now() - new Date(participation.last_sync).getTime();
             if (timeSinceLastSync < 30000) {
-                return res.status(429).json({ 
-                    message: `Please wait ${Math.ceil((30000 - timeSinceLastSync) / 1000)} seconds before syncing again` 
+                return res.status(429).json({
+                    message: `Please wait ${Math.ceil((30000 - timeSinceLastSync) / 1000)} seconds before syncing again`
                 });
             }
         }
@@ -56,8 +56,8 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         try {
             submissions = await getRecentSubmissions(req.user.leetcode_username, 50);
         } catch (error) {
-            return res.status(500).json({ 
-                message: 'Failed to fetch submissions from LeetCode. Please ensure your profile is public.' 
+            return res.status(500).json({
+                message: 'Failed to fetch submissions from LeetCode. Please ensure your profile is public.'
             });
         }
 
@@ -73,7 +73,7 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         let scoreChanged = false;
         const contestStartTime = new Date(contest.start_time).getTime() / 1000;
         const contestEndTime = new Date(contest.end_time).getTime() / 1000;
-        
+
         console.log('=== SYNC DEBUG ===');
         console.log('Contest:', contest.name);
         console.log('Contest time range:', new Date(contestStartTime * 1000), 'to', new Date(contestEndTime * 1000));
@@ -83,12 +83,12 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         // Iterate through contest problems
         for (const problem of contest.problems) {
             const slug = problem.slug;
-            
+
             console.log('Processing problem:', slug);
-            
+
             // Find this problem in participation
             const problemProgress = participation.problem_progress.find(p => p.slug === slug);
-            
+
             if (!problemProgress) {
                 console.log('  No progress entry for:', slug);
                 continue;
@@ -101,12 +101,12 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             }
 
             // Find relevant submissions for this problem
-            const problemSubmissions = submissions.filter(sub => 
+            const problemSubmissions = submissions.filter(sub =>
                 sub.titleSlug === slug &&
                 parseInt(sub.timestamp) >= contestStartTime &&
                 parseInt(sub.timestamp) <= contestEndTime
             );
-            
+
             console.log('  Found', problemSubmissions.length, 'submissions for', slug);
 
             // Sort by timestamp (oldest first)
@@ -130,21 +130,25 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
                 // Calculate penalty: ONLY failed attempts × 5 minutes
                 const penalty = failCount * 5;
 
+                // Capture old status BEFORE mutating — used to guard score addition below
+                const wasAlreadyAccepted = problemProgress.status === 'ACCEPTED';
+
                 problemProgress.status = 'ACCEPTED';
                 problemProgress.solved_at = solvedAt;
                 problemProgress.fail_count = failCount;
                 problemProgress.penalty = penalty;
 
-                // Update score if not already counted (use difficulty-based scoring)
-                if (participation.score === 0 || !participation.problem_progress.some(p => p.slug === slug && p.status === 'ACCEPTED')) {
+                // Only add score if this problem wasn't already accepted before this sync
+                if (!wasAlreadyAccepted) {
                     // Find the problem to get its difficulty
                     const fullProblem = await Contest.findById(contest._id).populate('problems.problem_id');
                     const problemWithDetails = fullProblem.problems.find(p => p.slug === slug);
                     const difficulty = problemWithDetails?.problem_id?.difficulty || 'Medium';
-                    
+
                     participation.score += getScoreForDifficulty(difficulty);
                     participation.total_penalty += penalty;
                     scoreChanged = true;
+                    console.log('  Score awarded for:', slug, 'difficulty:', difficulty, 'new score:', participation.score);
                 }
             } else if (failCount > 0) {
                 problemProgress.fail_count = failCount;
@@ -156,23 +160,36 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         console.log('=== SAVING PARTICIPATION ===');
         console.log('Score:', participation.score);
         console.log('Total Penalty:', participation.total_penalty);
-        console.log('Problem Progress:', participation.problem_progress.map(p => ({ 
-            slug: p.slug, 
-            status: p.status, 
-            fail_count: p.fail_count 
+        console.log('Problem Progress:', participation.problem_progress.map(p => ({
+            slug: p.slug,
+            status: p.status,
+            fail_count: p.fail_count
         })));
+
+        // Recompute finish_time from stored problem_progress
+        // finish_time = (last solved_at - contest_start) in seconds + (total fail penalties in seconds)
+        const computeFinishTime = (participation, contestStartMs) => {
+            const acceptedProblems = participation.problem_progress.filter(p => p.status === 'ACCEPTED');
+            if (acceptedProblems.length === 0) return 0;
+            const lastSolvedMs = Math.max(...acceptedProblems.map(p => new Date(p.solved_at).getTime()));
+            const timeFromStartSecs = (lastSolvedMs - contestStartMs) / 1000;
+            const failPenaltySecs = participation.problem_progress.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
+            return Math.floor(timeFromStartSecs + failPenaltySecs);
+        };
+
+        participation.finish_time = computeFinishTime(participation, new Date(contest.start_time).getTime());
 
         // Update last sync time
         participation.last_sync = new Date();
         await participation.save();
-        
+
         console.log('Participation saved successfully');
 
         // Recalculate ranks for all participants in this contest
         if (scoreChanged) {
             const allParticipations = await Participation.find({ contest_id: contest._id })
-                .sort({ score: -1, total_penalty: 1 });
-            
+                .sort({ score: -1, finish_time: 1 }); // Sort by score desc, then finish_time asc (tiebreaker)
+
             for (let i = 0; i < allParticipations.length; i++) {
                 const p = allParticipations[i];
                 const newRank = i + 1;
@@ -194,8 +211,8 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
 
     } catch (error) {
         console.error('Sync error:', error);
-        res.status(500).json({ 
-            message: 'Server error during sync' 
+        res.status(500).json({
+            message: 'Server error during sync'
         });
     }
 });
@@ -217,7 +234,7 @@ router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
         if (!contest) {
             contest = await Contest.findOne({ unique_code: contestId });
         }
-        
+
         if (!contest) {
             return res.status(404).json({ message: 'Contest not found' });
         }
@@ -225,40 +242,41 @@ router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
         // Find all participations for this contest using contest._id
         const participations = await Participation.find({ contest_id: contest._id })
             .populate('user_id', 'username leetcode_username')
-            .sort({ score: -1, total_penalty: 1 }); // Sort by score desc, then penalty asc
+            .sort({ score: -1, finish_time: 1 }); // Sort by score desc, finish_time asc (tiebreaker)
 
         const leaderboard = participations.map((p, index) => {
             // Calculate total time: (last_accepted_time + penalties) - contest_start_time
             const acceptedProblems = p.problem_progress.filter(prob => prob.status === 'ACCEPTED');
             let totalTime = 0;
-            
+
             if (acceptedProblems.length > 0) {
                 // Find last solved time
-                const lastSolvedTime = Math.max(...acceptedProblems.map(prob => 
+                const lastSolvedTime = Math.max(...acceptedProblems.map(prob =>
                     new Date(prob.solved_at).getTime()
                 ));
-                
+
                 const contestStart = new Date(contest.start_time).getTime();
                 const timeDiff = (lastSolvedTime - contestStart) / 1000; // seconds
                 const penaltyTime = p.total_penalty * 60; // convert minutes to seconds
-                
+
                 totalTime = Math.floor(timeDiff + penaltyTime);
             }
-            
+
             // Calculate total attempts across all problems
-            const totalAttempts = p.problem_progress.reduce((sum, prob) => 
+            const totalAttempts = p.problem_progress.reduce((sum, prob) =>
                 sum + (prob.fail_count || 0), 0
             );
-            
+
             return {
                 rank: index + 1,
                 username: p.user_id?.username || 'Unknown',
                 leetcode_username: p.user_id?.leetcode_username || 'Unknown',
                 score: p.score,
-                penalty: Math.round(p.total_penalty * 100) / 100, // Round to 2 decimals
-                total_time: totalTime, // in seconds
+                penalty: Math.round(p.total_penalty * 100) / 100,
+                finish_time: p.finish_time || 0, // seconds from contest start (used for ranking)
+                total_time: p.finish_time || 0,  // alias for frontend compatibility
                 solved: acceptedProblems.length,
-                attempts: totalAttempts, // NEW: Total failed attempts
+                attempts: totalAttempts,
                 problem_progress: p.problem_progress
             };
         });
@@ -267,8 +285,8 @@ router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
 
     } catch (error) {
         console.error('Leaderboard error:', error);
-        res.status(500).json({ 
-            message: 'Server error fetching leaderboard' 
+        res.status(500).json({
+            message: 'Server error fetching leaderboard'
         });
     }
 });
@@ -291,15 +309,15 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
         if (!contest) {
             contest = await Contest.findOne({ unique_code: contestId }).populate('problems.problem_id');
         }
-        
+
         if (!contest) {
             return res.status(404).json({ message: 'Contest not found' });
         }
 
         // Check if contest is finalized (no more syncs allowed)
         if (contest.finalized) {
-            return res.status(400).json({ 
-                message: 'Contest has been finalized. Rankings are locked.' 
+            return res.status(400).json({
+                message: 'Contest has been finalized. Rankings are locked.'
             });
         }
 
@@ -317,16 +335,16 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                 contest.finalized = true;
                 await contest.save();
             }
-            return res.status(400).json({ 
-                message: 'Grace period has ended. Rankings are now locked.' 
+            return res.status(400).json({
+                message: 'Grace period has ended. Rankings are now locked.'
             });
         }
 
-        // Check cooldown - use reduced cooldown (2 min) during grace period
+        // Check cooldown - 10 minutes between sync-all calls
         if (contest.last_bulk_sync) {
             const timeSinceLastSync = now - new Date(contest.last_bulk_sync).getTime();
-            const cooldownMs = isGracePeriod ? 2 * 60 * 1000 : 10 * 60 * 1000; // 2 min during grace, 10 min otherwise
-            
+            const cooldownMs = 10 * 60 * 1000; // 10 min cooldown (same during grace period and live)
+
             if (timeSinceLastSync < cooldownMs) {
                 const waitTime = Math.ceil((cooldownMs - timeSinceLastSync) / 1000);
                 return res.status(429).json({
@@ -340,35 +358,27 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
         // Get all participations using contest._id
         const participations = await Participation.find({ contest_id: contest._id })
             .populate('user_id', 'leetcode_username');
-        
+
         if (participations.length === 0) {
             return res.status(404).json({ message: 'No participants found' });
         }
-        
+
         let syncedCount = 0;
         let errorCount = 0;
         const User = require('../models/User');
 
-        // Sync each participant with delay to avoid rate limiting
-        for (let i = 0; i < participations.length; i++) {
-            const participation = participations[i];
-            
+        // Sync each participant in batches to avoid rate limiting while utilizing concurrency
+        const processParticipant = async (participation) => {
             try {
                 const user = participation.user_id;
                 if (!user || !user.leetcode_username) {
                     console.log(`Skipping participation - no LeetCode username`);
-                    continue;
-                }
-
-                // Add delay between requests to avoid rate limiting (except for first request)
-                if (i > 0) {
-                    const delay = 2000 + Math.random() * 1000; // 2-3 seconds random delay
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return { success: true, hasChanges: false };
                 }
 
                 // Fetch submissions
                 const submissions = await getRecentSubmissions(user.leetcode_username, 50);
-                
+
                 const contestStartTime = new Date(contest.start_time).getTime() / 1000;
                 const contestEndTime = new Date(contest.end_time).getTime() / 1000;
 
@@ -378,7 +388,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                 for (const problem of contest.problems) {
                     const slug = problem.slug;
                     const problemProgress = participation.problem_progress.find(p => p.slug === slug);
-                    
+
                     if (!problemProgress || problemProgress.status === 'ACCEPTED') continue;
 
                     const problemSubmissions = submissions.filter(sub =>
@@ -420,14 +430,47 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                 }
 
                 if (hasChanges) {
+                    // Recompute finish_time from all accepted problems
+                    const acceptedProblems = participation.problem_progress.filter(p => p.status === 'ACCEPTED');
+                    if (acceptedProblems.length > 0) {
+                        const contestStartMs = new Date(contest.start_time).getTime();
+                        const lastSolvedMs = Math.max(...acceptedProblems.map(p => new Date(p.solved_at).getTime()));
+                        const timeFromStartSecs = (lastSolvedMs - contestStartMs) / 1000;
+                        const failPenaltySecs = participation.problem_progress.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
+                        participation.finish_time = Math.floor(timeFromStartSecs + failPenaltySecs);
+                    }
+
                     participation.last_sync = new Date();
                     await participation.save();
-                    syncedCount++;
                 }
 
+                return { success: true, hasChanges };
             } catch (error) {
                 console.error(`Error syncing ${participation.user_id?.leetcode_username}:`, error.message);
-                errorCount++;
+                return { success: false, hasChanges: false };
+            }
+        };
+
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < participations.length; i += BATCH_SIZE) {
+            const batch = participations.slice(i, i + BATCH_SIZE);
+
+            // Run the batch concurrently
+            const results = await Promise.all(batch.map(p => processParticipant(p)));
+
+            // Tally results
+            results.forEach(res => {
+                if (!res.success) {
+                    errorCount++;
+                } else if (res.hasChanges) {
+                    syncedCount++;
+                }
+            });
+
+            // Delay before the next batch to avoid LeetCode rate limits (429 Too Many Requests)
+            if (i + BATCH_SIZE < participations.length) {
+                const delay = 1500 + Math.random() * 1000; // 1.5-2.5 seconds
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
 
@@ -437,8 +480,8 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
 
         // Calculate and save ranks for all participants
         const allParticipations = await Participation.find({ contest_id: contest._id })
-            .sort({ score: -1, total_penalty: 1 }); // Sort by score desc, penalty asc
-        
+            .sort({ score: -1, finish_time: 1 }); // Sort by score desc, finish_time asc (tiebreaker)
+
         for (let i = 0; i < allParticipations.length; i++) {
             const participation = allParticipations[i];
             const newRank = i + 1;

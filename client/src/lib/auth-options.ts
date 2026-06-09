@@ -4,11 +4,31 @@ import GitHubProvider from "next-auth/providers/github";
 import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
 import clientPromise from "./mongodb";
 import jwt from "jsonwebtoken";
-import { ObjectId } from "mongodb";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+/**
+ * Fetch the MongoDB user for a given email directly from the DB.
+ */
+async function getMongoUserByEmail(email: string) {
+    try {
+        const client = await clientPromise;
+        const db = client.db(); // Uses the default DB from MONGODB_URI
+        const user = await db.collection("users").findOne({ email });
+        if (!user) return null;
+        return {
+            id: user._id.toString(),
+            leetcode_username: user.leetcode_username,
+            name: user.name || user.username,
+            image: user.image
+        };
+    } catch {
+        return null;
+    }
+}
 
 export const authOptions: NextAuthOptions = {
     adapter: MongoDBAdapter(clientPromise, {
-        databaseName: "leetcode",
         collections: {
             Users: "users",
             Accounts: "accounts",
@@ -29,53 +49,73 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     session: {
-        strategy: "jwt", // Use JWT for session - compatible with Express backend
+        strategy: "jwt",
         maxAge: 7 * 24 * 60 * 60, // 7 days
     },
     callbacks: {
-        async jwt({ token, user, trigger }) {
-            // On initial sign in, add user data to token
-            if (user) {
-                token.userId = user.id;
-                token.userName = (user as any).name || null;
-                token.leetcode_username = (user as any).leetcode_username || null;
-            }
-
-            // On session update (e.g., after completing profile or updating name), refetch user data
-            // The allowDangerousEmailAccountLinking setting prevents OAuthAccountNotLinked errors
-            if (trigger === "update" && token.sub) {
+        async signIn({ user, account }) {
+            // NextAuth MongoDB Adapter handles user/account creation automatically.
+            // However, if the user already existed (e.g., via credentials registration)
+            // and had no image, we want to update their image from the OAuth provider.
+            if (account?.type === "oauth" && user.email && user.image) {
                 try {
                     const client = await clientPromise;
-                    const db = client.db("leetcode");
-                    const dbUser = await db.collection("users").findOne({
-                        _id: new ObjectId(token.sub)
-                    });
+                    const db = client.db();
+                    await db.collection("users").updateOne(
+                        { email: user.email },
+                        { $set: { image: user.image } }
+                    );
+                } catch (e) {
+                    console.error("Failed to sync OAuth image to user", e);
+                }
+            }
+            return true;
+        },
+
+        async jwt({ token, user, trigger }) {
+            // On initial sign-in, user object is available (this is the user object from the DB adapter)
+            if (user) {
+                token.userId = user.id; // The MongoDB _id
+                
+                if (user.email) {
+                    const dbUser = await getMongoUserByEmail(user.email);
                     if (dbUser) {
-                        token.userName = dbUser.name || null;
                         token.leetcode_username = dbUser.leetcode_username || null;
+                        token.userName = dbUser.name || user.name || null;
+                        token.picture = dbUser.image || token.picture || null;
                     }
-                } catch (error) {
-                    console.error("Error fetching user data on session update:", error);
+                }
+                token.userName = token.userName || (user as any).name || null;
+                token.leetcode_username = token.leetcode_username || (user as any).leetcode_username || null;
+            }
+
+            // On session update, refresh user data
+            if (trigger === "update" && token.email) {
+                const dbUser = await getMongoUserByEmail(token.email as string);
+                if (dbUser) {
+                    token.userId = dbUser.id;
+                    token.userName = dbUser.name || null;
+                    token.leetcode_username = dbUser.leetcode_username || null;
+                    token.picture = dbUser.image || token.picture || null;
                 }
             }
 
-            // Generate a backend-compatible JWT token
-            // This token can be used to authenticate with the Express backend
-            if (token.sub) {
-                const backendToken = jwt.sign(
-                    { userId: token.sub },
+            // Generate backend-compatible JWT using the MongoDB user ID
+            const userId = token.userId as string | undefined;
+            if (userId) {
+                token.backendToken = jwt.sign(
+                    { userId: userId },
                     process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!,
                     { expiresIn: "7d" }
                 );
-                token.backendToken = backendToken;
             }
 
             return token;
         },
+
         async session({ session, token }) {
-            // Pass the backend-compatible token to the client session
             if (session.user) {
-                (session.user as any).id = token.sub;
+                (session.user as any).id = token.userId || token.sub;
                 (session.user as any).name = token.userName;
                 (session.user as any).leetcode_username = token.leetcode_username;
                 (session as any).backendToken = token.backendToken;
@@ -89,8 +129,7 @@ export const authOptions: NextAuthOptions = {
     },
     events: {
         async createUser({ user }) {
-            // When a new user is created via OAuth, they'll need to complete their profile
-            console.log("New user created:", user.email);
+            console.log("New OAuth user created:", user.email);
         },
     },
 };
