@@ -32,6 +32,7 @@ import {
     Copy,
     Loader2,
     AlertCircle,
+    Download,
 } from 'lucide-react';
 import ContestLeaderboard from '@/components/contest/contest-leaderboard';
 
@@ -288,6 +289,24 @@ function ContestDetailContent() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="font-semibold text-primary flex items-center gap-2">
+                                <Download className="w-5 h-5" />
+                                Automatic Sync Active? Get the Extension!
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Install our Chrome extension for automatic, real-time submission syncing during active contests.
+                            </p>
+                        </div>
+                        <a href={process.env.NEXT_PUBLIC_EXTENSION_URL || '#'} target="_blank" rel="noreferrer">
+                            <Button variant="default" className="gap-2">
+                                <Download className="w-4 h-4" />
+                                Download ZIP
+                            </Button>
+                        </a>
+                    </div>
+
                     <Card className="border-border overflow-hidden">
                         <div className="bg-gradient-to-r from-primary/20 to-transparent p-6">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
