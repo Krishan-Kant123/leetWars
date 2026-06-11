@@ -31,6 +31,7 @@ import {
     ArrowRight,
     Loader2,
     Zap,
+    Download,
 } from 'lucide-react';
 
 function DashboardContent() {
@@ -138,6 +139,24 @@ function DashboardContent() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <h3 className="font-semibold text-primary flex items-center gap-2">
+                                <Download className="w-5 h-5" />
+                                Get the LeetWars Extension!
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Install our Chrome extension for automatic, real-time submission syncing during active contests.
+                            </p>
+                        </div>
+                        <a href={process.env.NEXT_PUBLIC_EXTENSION_URL || '#'} target="_blank" rel="noreferrer">
+                            <Button variant="default" className="gap-2">
+                                <Download className="w-4 h-4" />
+                                Download ZIP
+                            </Button>
+                        </a>
+                    </div>
+
                     <h1 className="text-3xl md:text-4xl font-bold mb-2">
                         Welcome back, <span className="text-primary">{user?.name || user?.leetcode_username}</span>!
                     </h1>

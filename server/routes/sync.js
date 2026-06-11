@@ -173,7 +173,7 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             if (acceptedProblems.length === 0) return 0;
             const lastSolvedMs = Math.max(...acceptedProblems.map(p => new Date(p.solved_at).getTime()));
             const timeFromStartSecs = (lastSolvedMs - contestStartMs) / 1000;
-            const failPenaltySecs = participation.problem_progress.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
+            const failPenaltySecs = acceptedProblems.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
             return Math.floor(timeFromStartSecs + failPenaltySecs);
         };
 
@@ -436,7 +436,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                         const contestStartMs = new Date(contest.start_time).getTime();
                         const lastSolvedMs = Math.max(...acceptedProblems.map(p => new Date(p.solved_at).getTime()));
                         const timeFromStartSecs = (lastSolvedMs - contestStartMs) / 1000;
-                        const failPenaltySecs = participation.problem_progress.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
+                        const failPenaltySecs = acceptedProblems.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
                         participation.finish_time = Math.floor(timeFromStartSecs + failPenaltySecs);
                     }
 

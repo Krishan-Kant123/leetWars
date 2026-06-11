@@ -12,6 +12,7 @@ const botRoutes = require('./routes/bot');
 const companiesRoutes = require('./routes/companies');
 const onboardingRoutes = require('./routes/onboarding');
 const userRoutes = require('./routes/user');
+const extensionsRoutes = require('./routes/extensions');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,10 +24,16 @@ const corsOptions = {
         
         if (!origin) return callback(null, true);
         
+        // Allow extension background scripts
+        if (origin.startsWith('chrome-extension://')) {
+            return callback(null, true);
+        }
+        
         const allowedOrigins = [
             process.env.FRONTEND_URL || 'http://localhost:5000',
             'http://localhost:5000', 
-            process.env.FRONTEND_URL_NEXT
+            process.env.FRONTEND_URL_NEXT,
+            'http://localhost:3000'
         ];
         
         if (allowedOrigins.indexOf(origin) !== -1) {
@@ -57,7 +64,8 @@ app.get('/', (req, res) => {
             bot: '/api/bot',
             companies: '/api/companies',
             onboarding: '/api/onboarding',
-            user: '/api/user'
+            user: '/api/user',
+            extensions: '/api/extensions'
         }
     });
 });
@@ -71,6 +79,7 @@ app.use('/api/bot', botRoutes);
 app.use('/api/companies', companiesRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/extensions', extensionsRoutes);
 
 app.use((err, req, res, next) => {
     console.error('Server Error:', err);
