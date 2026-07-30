@@ -42,18 +42,22 @@ const participationSchema = new mongoose.Schema({
         penalty: {
             type: Number,
             default: 0
+        },
+        processed_submission_ids: {
+            type: [String],
+            default: []
         }
     }],
     last_sync: {
         type: Date
     },
     finish_time: {
-        type: Number,  // in seconds from contest start (includes fail penalties)
+        type: Number,  
         default: 0
     }
 });
 
-// Compound index to ensure one participation per user per contest
+
 participationSchema.index({ contest_id: 1, user_id: 1 }, { unique: true });
 
 module.exports = mongoose.model('Participation', participationSchema);

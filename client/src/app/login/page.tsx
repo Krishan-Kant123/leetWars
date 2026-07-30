@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,14 @@ export default function LoginPage() {
 
     const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
     const error = searchParams.get('error');
+
+    const { data: session, status } = useSession();
+
+    useEffect(() => {
+        if (status === 'authenticated') {
+            router.push('/dashboard');
+        }
+    }, [status, router]);
 
     const handleOAuthSignIn = async (provider: 'google' | 'github') => {
         setIsLoading(provider);

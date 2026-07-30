@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 const Problem = require('./models/Problem');
 
-// Sample LeetCode problems
+
 const sampleProblems = [
     {
         title: "Two Sum",
@@ -113,25 +113,25 @@ const sampleProblems = [
 
 async function seedProblems() {
     try {
-        // Connect to MongoDB
+        
         await mongoose.connect(process.env.MONGODB_URI);
 
 
-        console.log('✅ Connected to MongoDB');
+        console.log(' Connected to MongoDB');
 
-        // Clear existing problems
+        
         await Problem.deleteMany({});
-        console.log('🗑️  Cleared existing problems');
+        console.log('  Cleared existing problems');
 
-        // Insert sample problems
+        
         await Problem.insertMany(sampleProblems);
-        console.log(`✅ Inserted ${sampleProblems.length} sample problems`);
+        console.log(` Inserted ${sampleProblems.length} sample problems`);
 
         mongoose.connection.close();
-        console.log('✅ Database seeding completed!');
+        console.log(' Database seeding completed!');
 
     } catch (error) {
-        console.error('❌ Error seeding database:', error);
+        console.error(' Error seeding database:', error);
         process.exit(1);
     }
 }

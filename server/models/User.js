@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
-        required: false, // Optional for OAuth users (will use name or email prefix)
+        required: false, 
         unique: true,
-        sparse: true, // Allow multiple nulls for uniqueness
+        sparse: true, 
         trim: true,
         minlength: 3
     },
@@ -30,11 +30,11 @@ const userSchema = new mongoose.Schema({
     },
     password_hash: {
         type: String,
-        required: false // Optional - not used for OAuth users
+        required: false 
     },
     leetcode_username: {
         type: String,
-        required: false, // Optional initially - enforced via onboarding flow
+        required: false, 
         trim: true
     },
     created_at: {

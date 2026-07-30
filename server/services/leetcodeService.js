@@ -143,7 +143,7 @@ const headers = {
     'Referer': 'https://leetcode.com/'
 };
 
-// Retry helper with exponential backoff and jitter
+
 const retryWithBackoff = async (fn, maxRetries = 5, baseDelay = 2000) => {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -159,21 +159,16 @@ const retryWithBackoff = async (fn, maxRetries = 5, baseDelay = 2000) => {
                 throw error;
             }
             
-            // Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s (randomized ±25%)
+            
             const delay = baseDelay * Math.pow(2, attempt);
-            const jitter = delay * (0.75 + Math.random() * 0.5); // ±25% randomization
+            const jitter = delay * (0.75 + Math.random() * 0.5); 
             console.log(`Retry ${attempt + 1}/${maxRetries} after ${Math.round(jitter)}ms...`);
             await new Promise(resolve => setTimeout(resolve, jitter));
         }
     }
 };
 
-/**
- * Fetch recent submissions for a LeetCode user
- * @param {string} username - LeetCode username
- * @param {number} limit - Number of submissions to fetch
- * @returns {Promise<Array>} - Array of recent submissions
- */
+
 const getRecentSubmissions = async (username, limit = 20) => {
     try {
         const response = await retryWithBackoff(async () => {
@@ -182,7 +177,7 @@ const getRecentSubmissions = async (username, limit = 20) => {
                 variables: { username, limit }
             }, { 
                 headers,
-                timeout: 15000 // 15 second timeout
+                timeout: 15000 
             });
         });
 
@@ -196,11 +191,7 @@ const getRecentSubmissions = async (username, limit = 20) => {
     }
 };
 
-/**
- * Fetch problem data from LeetCode
- * @param {string} titleSlug - Problem slug (e.g., 'two-sum')
- * @returns {Promise<Object>} - Problem data
- */
+
 const getProblemData = async (titleSlug) => {
     try {
         const response = await axios.post(LEETCODE_API_ENDPOINT, {
@@ -218,38 +209,30 @@ const getProblemData = async (titleSlug) => {
     }
 };
 
-/**
- * Check if a LeetCode username is valid and has a public profile
- * @param {string} username - LeetCode username
- * @returns {Promise<boolean>} - True if valid and public
- */
+
 const validateLeetCodeUsername = async (username) => {
     try {
-        // Try to fetch the user's profile
+        
         const profile = await getUserProfile(username);
         
-        // Check if profile exists and has valid data
+        
         if (!profile || !profile.username) {
             return false;
         }
         
-        // Verify the username matches (case-insensitive)
+        
         if (profile.username.toLowerCase() !== username.toLowerCase()) {
             return false;
         }
         
-        return true; // Profile exists and is valid
+        return true; 
     } catch (error) {
         console.error(`Failed to validate LeetCode username ${username}:`, error.message);
         return false;
     }
 };
 
-/**
- * Search problems on LeetCode API
- * @param {Object} filters - Search filters { difficulty, tags, searchKeywords, limit }
- * @returns {Promise<Array>} - Array of problems from LeetCode
- */
+
 const searchProblemsOnLeetCode = async (filters = {}) => {
     try {
         const { difficulty, tags, searchKeywords, limit = 50 } = filters;
@@ -259,7 +242,7 @@ const searchProblemsOnLeetCode = async (filters = {}) => {
         console.log('Tags:', tags || 'none');
         console.log('Keywords:', searchKeywords || 'none');
         
-        // Build filters object for LeetCode API
+        
         const apiFilters = {};
         
         if (difficulty) {
@@ -302,12 +285,12 @@ const searchProblemsOnLeetCode = async (filters = {}) => {
         const questions = response.data.data.problemsetQuestionList.questions || [];
         console.log(`Parsed ${questions.length} questions from API`);
         
-        // Transform to our format
+        
         const transformed = questions.map(q => ({
             questionId: q.questionId,
             title: q.title,
             title_slug: q.titleSlug,
-            difficulty: q.difficulty.charAt(0) + q.difficulty.slice(1).toLowerCase(), // Easy, Medium, Hard
+            difficulty: q.difficulty.charAt(0) + q.difficulty.slice(1).toLowerCase(), 
             tags: q.topicTags.map(t => t.name)
         }));
 
@@ -324,14 +307,10 @@ const searchProblemsOnLeetCode = async (filters = {}) => {
     }
 };
 
-/**
- * Get comprehensive user profile from LeetCode
- * @param {string} username - LeetCode username
- * @returns {Promise<Object>} - User profile with stats
- */
+
 const getUserProfile = async (username) => {
     try {
-        // Check cache first
+        
         const cacheKey = `leetcode_profile_${username}`;
         const cached = cache.get(cacheKey);
         if (cached) {
@@ -356,7 +335,7 @@ const getUserProfile = async (username) => {
             throw new Error('User not found');
         }
 
-        // Parse solved problems by difficulty
+        
         const solvedStats = {};
         if (data.matchedUser.submitStats && data.matchedUser.submitStats.acSubmissionNum) {
             data.matchedUser.submitStats.acSubmissionNum.forEach(item => {
@@ -364,7 +343,7 @@ const getUserProfile = async (username) => {
             });
         }
 
-        // Get total problems by difficulty
+        
         const totalProblems = {};
         if (data.allQuestionsCount) {
             data.allQuestionsCount.forEach(item => {
@@ -391,7 +370,7 @@ const getUserProfile = async (username) => {
             contestRanking: data.userContestRanking || null
         };
 
-        // Cache the result for 2.5 hours
+        
         cache.set(cacheKey, result, 9000);
         console.log(` Cached profile for: ${username}`);
 
@@ -403,14 +382,10 @@ const getUserProfile = async (username) => {
     }
 };
 
-/**
- * Get user's solved problems by tags
- * @param {string} username - LeetCode username
- * @returns {Promise<Object>} - Tag-wise problem count
- */
+
 const getUserSolvedByTags = async (username) => {
     try {
-        // Check cache first
+        
         const cacheKey = `leetcode_tags_${username}`;
         const cached = cache.get(cacheKey);
         if (cached) {
@@ -435,7 +410,7 @@ const getUserSolvedByTags = async (username) => {
             throw new Error('User not found');
         }
 
-        // Combine all tag categories
+        
         const allTags = [];
         const tagCounts = data.matchedUser.tagProblemCounts;
 
@@ -445,12 +420,12 @@ const getUserSolvedByTags = async (username) => {
             if (tagCounts.fundamental) allTags.push(...tagCounts.fundamental);
         }
 
-        // Sort by problems solved
+        
         allTags.sort((a, b) => b.problemsSolved - a.problemsSolved);
 
         console.log(`Tag stats fetched: ${allTags.length} tags`);
 
-        // Cache the result for 2.5 hours
+        
         cache.set(cacheKey, allTags, 9000);
         console.log(` Cached tags for: ${username}`);
 
@@ -462,14 +437,10 @@ const getUserSolvedByTags = async (username) => {
     }
 };
 
-/**
- * Get user's LeetCode contest history with ratings
- * @param {string} username - LeetCode username
- * @returns {Promise<Object>} - Contest ranking info and history
- */
+
 const getUserContestHistory = async (username) => {
     try {
-        // Check cache first
+        
         const cacheKey = `leetcode_contests_${username}`;
         const cached = cache.get(cacheKey);
         if (cached) {
@@ -491,7 +462,7 @@ const getUserContestHistory = async (username) => {
         const data = response.data.data;
 
         if (!data.userContestRanking) {
-            // User hasn't participated in any contests
+            
             const emptyResult = {
                 contestRanking: null,
                 contestHistory: []
@@ -502,7 +473,7 @@ const getUserContestHistory = async (username) => {
 
         const history = data.userContestRankingHistory || [];
         
-        // Filter only attended contests and format data
+        
         const attendedContests = history
             .filter(contest => contest.attended)
             .map(contest => ({
@@ -522,7 +493,7 @@ const getUserContestHistory = async (username) => {
             contestHistory: attendedContests
         };
 
-        // Cache the result for 2.5 hours
+        
         cache.set(cacheKey, result, 9000);
         console.log(` Cached contests for: ${username}`);
 

@@ -52,7 +52,12 @@ async function ensureJobExists(jobs: SubmissionJob[], submissionId: number) {
   return job;
 }
 
+let isProcessing = false;
+
 async function backgroundLoopOnce() {
+  if (isProcessing) return; // skip if already running — prevents scheduler + setTimeout overlap
+  isProcessing = true;
+  try {
   const state = await loadState();
   const jobs = state.jobs as SubmissionJob[];
 
@@ -108,7 +113,7 @@ async function backgroundLoopOnce() {
 
       // We skip match check if loggedInLcUser isn't available yet
       // but ideally we only send if they match.
-      if (loggedInLcUser && lcUsername && loggedInLcUser.toLowerCase() !== lcUsername.toLowerCase()) {
+      if (loggedInLcUser && lcUsername && loggedInLcUser !== lcUsername) {
         job.status = "IGNORED";
         job.error = `Username mismatch. Submitted by ${lcUsername}, logged in as ${loggedInLcUser}.`;
         await saveState({ jobs });
@@ -153,6 +158,9 @@ async function backgroundLoopOnce() {
       job.error = e instanceof Error ? e.message : String(e);
       await saveState({ jobs });
     }
+  }
+  } finally {
+    isProcessing = false;
   }
 }
 

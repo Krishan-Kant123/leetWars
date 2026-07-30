@@ -1,12 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-/**
- * Middleware to verify JWT token and attach user to request
- */
+
 const authMiddleware = async (req, res, next) => {
     try {
-        // Get token from header
+        
         const token = req.header('Authorization')?.replace('Bearer ', '');
 
         if (!token) {
@@ -15,10 +13,10 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
-        // Verify token
+        
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Find user
+        
         const user = await User.findById(decoded.userId).select('-password_hash');
 
         if (!user) {
@@ -27,7 +25,7 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
-        // Attach user to request
+        
         req.user = user;
         next();
 

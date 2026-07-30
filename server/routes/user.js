@@ -3,11 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 const User = require('../models/User');
 
-/**
- * @route PUT /api/profile/update-name
- * @desc Update user's display name
- * @access Private
- */
+
 router.put('/update-name', authMiddleware, async (req, res) => {
     try {
         const { name } = req.body;
@@ -25,7 +21,7 @@ router.put('/update-name', authMiddleware, async (req, res) => {
             });
         }
 
-        // Update the user's name
+        
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { name: name.trim() },

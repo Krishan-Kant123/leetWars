@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Trophy, Zap, Users, BarChart3 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 const features = [
   {
@@ -29,6 +32,15 @@ const features = [
 ];
 
 export default function LandingPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/dashboard');
+    }
+  }, [status, router]);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}

@@ -5,10 +5,7 @@ const Participation = require('../models/Participation');
 const authMiddleware = require('../middleware/auth');
 const { getUserProfile, getUserSolvedByTags, getUserContestHistory } = require('../services/leetcodeService');
 
-/**
- * GET /api/profile/leetcode-stats
- * Get user's LeetCode stats (Protected)
- */
+
 router.get('/leetcode-stats', authMiddleware, async (req, res) => {
     try {
         const user = req.user;
@@ -17,7 +14,7 @@ router.get('/leetcode-stats', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'LeetCode username not set' });
         }
 
-        // Fetch from LeetCode API
+        
         const profile = await getUserProfile(user.leetcode_username);
         const tagStats = await getUserSolvedByTags(user.leetcode_username);
         const contestData = await getUserContestHistory(user.leetcode_username);
@@ -38,20 +35,17 @@ router.get('/leetcode-stats', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/profile/contest-history
- * Get user's contest history (Protected)
- */
+
 router.get('/contest-history', authMiddleware, async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Find all participations (use user_id field to match Participation model)
+        
         const participations = await Participation.find({ user_id: userId })
             .populate('contest_id')
             .sort({ createdAt: -1 });
 
-        // Categorize into live and past
+        
         const now = new Date();
         const liveContests = [];
         const pastContests = [];
@@ -99,28 +93,25 @@ router.get('/contest-history', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/profile/stats
- * Get overall platform stats (Protected)
- */
+
 router.get('/stats', authMiddleware, async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Count created contests (use creator_id field to match Contest model)
+        
         const createdContests = await Contest.countDocuments({ creator_id: userId });
 
-        // Count participated contests (use user_id field to match Participation model)
+        
         const participatedContests = await Participation.countDocuments({ user_id: userId });
 
-        // Get best rank and total problems solved
+        
         const participations = await Participation.find({ user_id: userId }).sort({ rank: 1 });
         
         let bestRank = null;
         let totalSolved = 0;
         
         if (participations.length > 0) {
-            // Filter participations with valid ranks
+            
             const rankedParticipations = participations.filter(p => p.rank && p.rank > 0);
             if (rankedParticipations.length > 0) {
                 bestRank = rankedParticipations[0].rank;
@@ -143,21 +134,18 @@ router.get('/stats', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/profile/platform-stats
- * Get LeetWars platform statistics (Protected)
- */
+
 router.get('/platform-stats', authMiddleware, async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Count created contests (use creator_id field to match Contest model)
+        
         const totalContestsCreated = await Contest.countDocuments({ creator_id: userId });
 
-        // Count participated contests (use user_id field to match Participation model)
+        
         const totalContestsParticipated = await Participation.countDocuments({ user_id: userId });
 
-        // Calculate average rank
+        
         const participations = await Participation.find({ user_id: userId });
         
         let averageRank = null;
@@ -170,7 +158,7 @@ router.get('/platform-stats', authMiddleware, async (req, res) => {
                 averageRank = Math.round(totalRanks / rankedParticipations.length);
             }
 
-            // Get recent contests with details (use contest_id field for populate)
+            
             const recentParticipations = await Participation.find({ user_id: userId })
                 .populate('contest_id')
                 .sort({ createdAt: -1 })

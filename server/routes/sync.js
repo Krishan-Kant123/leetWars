@@ -5,16 +5,12 @@ const Participation = require('../models/Participation');
 const authMiddleware = require('../middleware/auth');
 const { getRecentSubmissions } = require('../services/leetcodeService');
 
-/**
- * POST /api/sync/:contestId
- * Sync user's LeetCode submissions for a specific contest (Protected)
- * contestId can be either MongoDB ObjectId or contest unique_code
- */
+
 router.post('/:contestId', authMiddleware, async (req, res) => {
     try {
         const { contestId } = req.params;
 
-        // Find contest - try by ObjectId first, then by unique_code
+        
         let contest;
         if (contestId.match(/^[0-9a-fA-F]{24}$/)) {
             contest = await Contest.findById(contestId);
@@ -29,7 +25,7 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             });
         }
 
-        // Find participation using contest._id
+        
         const participation = await Participation.findOne({
             contest_id: contest._id,
             user_id: req.user._id
@@ -41,7 +37,7 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             });
         }
 
-        // Check rate limiting (30 seconds between syncs)
+        
         if (participation.last_sync) {
             const timeSinceLastSync = Date.now() - new Date(participation.last_sync).getTime();
             if (timeSinceLastSync < 30000) {
@@ -51,7 +47,7 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             }
         }
 
-        // Fetch recent submissions from LeetCode
+        
         let submissions;
         try {
             submissions = await getRecentSubmissions(req.user.leetcode_username, 50);
@@ -61,15 +57,15 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             });
         }
 
-        // Helper to get score based on difficulty
+        
         const getScoreForDifficulty = (difficulty) => {
             if (difficulty === 'Easy') return 3;
             if (difficulty === 'Medium') return 4;
             if (difficulty === 'Hard') return 6;
-            return 1; // fallback
+            return 1; 
         };
 
-        // Process submissions
+        
         let scoreChanged = false;
         const contestStartTime = new Date(contest.start_time).getTime() / 1000;
         const contestEndTime = new Date(contest.end_time).getTime() / 1000;
@@ -80,13 +76,17 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
         console.log('Total submissions fetched:', submissions.length);
         console.log('Submissions:', submissions.map(s => ({ slug: s.titleSlug, status: s.statusDisplay, time: new Date(parseInt(s.timestamp) * 1000) })));
 
-        // Iterate through contest problems
+        
+        // --- Compute updates in memory, then apply atomically ---
+        let newScore = participation.score;
+        let newTotalPenalty = participation.total_penalty;
+
         for (const problem of contest.problems) {
             const slug = problem.slug;
 
             console.log('Processing problem:', slug);
 
-            // Find this problem in participation
+            
             const problemProgress = participation.problem_progress.find(p => p.slug === slug);
 
             if (!problemProgress) {
@@ -94,13 +94,13 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
                 continue;
             }
 
-            // Skip if already solved
+            
             if (problemProgress.status === 'ACCEPTED') {
                 console.log('  Already solved:', slug);
                 continue;
             }
 
-            // Find relevant submissions for this problem
+            
             const problemSubmissions = submissions.filter(sub =>
                 sub.titleSlug === slug &&
                 parseInt(sub.timestamp) >= contestStartTime &&
@@ -109,10 +109,10 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
 
             console.log('  Found', problemSubmissions.length, 'submissions for', slug);
 
-            // Sort by timestamp (oldest first)
+            
             problemSubmissions.sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp));
 
-            // Process submissions
+            
             let failCount = 0;
             let solvedAt = null;
 
@@ -125,12 +125,12 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
                 }
             }
 
-            // Update problem progress
+            
             if (solvedAt) {
-                // Calculate penalty: ONLY failed attempts × 5 minutes
+                
                 const penalty = failCount * 5;
 
-                // Capture old status BEFORE mutating — used to guard score addition below
+                
                 const wasAlreadyAccepted = problemProgress.status === 'ACCEPTED';
 
                 problemProgress.status = 'ACCEPTED';
@@ -138,17 +138,17 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
                 problemProgress.fail_count = failCount;
                 problemProgress.penalty = penalty;
 
-                // Only add score if this problem wasn't already accepted before this sync
+                
                 if (!wasAlreadyAccepted) {
-                    // Find the problem to get its difficulty
+                    
                     const fullProblem = await Contest.findById(contest._id).populate('problems.problem_id');
                     const problemWithDetails = fullProblem.problems.find(p => p.slug === slug);
                     const difficulty = problemWithDetails?.problem_id?.difficulty || 'Medium';
 
-                    participation.score += getScoreForDifficulty(difficulty);
-                    participation.total_penalty += penalty;
+                    newScore += getScoreForDifficulty(difficulty);
+                    newTotalPenalty += penalty;
                     scoreChanged = true;
-                    console.log('  Score awarded for:', slug, 'difficulty:', difficulty, 'new score:', participation.score);
+                    console.log('  Score awarded for:', slug, 'difficulty:', difficulty, 'new score:', newScore);
                 }
             } else if (failCount > 0) {
                 problemProgress.fail_count = failCount;
@@ -157,17 +157,17 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             }
         }
 
-        console.log('=== SAVING PARTICIPATION ===');
-        console.log('Score:', participation.score);
-        console.log('Total Penalty:', participation.total_penalty);
+        console.log('=== SAVING PARTICIPATION (ATOMIC) ===');
+        console.log('Score:', newScore);
+        console.log('Total Penalty:', newTotalPenalty);
         console.log('Problem Progress:', participation.problem_progress.map(p => ({
             slug: p.slug,
             status: p.status,
             fail_count: p.fail_count
         })));
 
-        // Recompute finish_time from stored problem_progress
-        // finish_time = (last solved_at - contest_start) in seconds + (total fail penalties in seconds)
+        
+        
         const computeFinishTime = (participation, contestStartMs) => {
             const acceptedProblems = participation.problem_progress.filter(p => p.status === 'ACCEPTED');
             if (acceptedProblems.length === 0) return 0;
@@ -177,18 +177,28 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
             return Math.floor(timeFromStartSecs + failPenaltySecs);
         };
 
-        participation.finish_time = computeFinishTime(participation, new Date(contest.start_time).getTime());
+        const newFinishTime = computeFinishTime(participation, new Date(contest.start_time).getTime());
 
-        // Update last sync time
-        participation.last_sync = new Date();
-        await participation.save();
+        // Atomic update — overwrites all computed fields in a single operation
+        await Participation.findOneAndUpdate(
+            { _id: participation._id },
+            {
+                $set: {
+                    problem_progress: participation.problem_progress,
+                    score: newScore,
+                    total_penalty: newTotalPenalty,
+                    finish_time: newFinishTime,
+                    last_sync: new Date()
+                }
+            }
+        );
 
-        console.log('Participation saved successfully');
+        console.log('Participation saved successfully (atomic)');
 
-        // Recalculate ranks for all participants in this contest
+        
         if (scoreChanged) {
             const allParticipations = await Participation.find({ contest_id: contest._id })
-                .sort({ score: -1, finish_time: 1 }); // Sort by score desc, then finish_time asc (tiebreaker)
+                .sort({ score: -1, finish_time: 1 }); 
 
             for (let i = 0; i < allParticipations.length; i++) {
                 const p = allParticipations[i];
@@ -217,16 +227,12 @@ router.post('/:contestId', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/sync/leaderboard/:contestId
- * Get leaderboard for a contest (Protected)
- * contestId can be either MongoDB ObjectId or contest unique_code
- */
+
 router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
     try {
         const { contestId } = req.params;
 
-        // Find contest - try by ObjectId first, then by unique_code
+        
         let contest;
         if (contestId.match(/^[0-9a-fA-F]{24}$/)) {
             contest = await Contest.findById(contestId);
@@ -239,30 +245,30 @@ router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Contest not found' });
         }
 
-        // Find all participations for this contest using contest._id
+        
         const participations = await Participation.find({ contest_id: contest._id })
             .populate('user_id', 'username leetcode_username')
-            .sort({ score: -1, finish_time: 1 }); // Sort by score desc, finish_time asc (tiebreaker)
+            .sort({ score: -1, finish_time: 1 }); 
 
         const leaderboard = participations.map((p, index) => {
-            // Calculate total time: (last_accepted_time + penalties) - contest_start_time
+            
             const acceptedProblems = p.problem_progress.filter(prob => prob.status === 'ACCEPTED');
             let totalTime = 0;
 
             if (acceptedProblems.length > 0) {
-                // Find last solved time
+                
                 const lastSolvedTime = Math.max(...acceptedProblems.map(prob =>
                     new Date(prob.solved_at).getTime()
                 ));
 
                 const contestStart = new Date(contest.start_time).getTime();
-                const timeDiff = (lastSolvedTime - contestStart) / 1000; // seconds
-                const penaltyTime = p.total_penalty * 60; // convert minutes to seconds
+                const timeDiff = (lastSolvedTime - contestStart) / 1000; 
+                const penaltyTime = p.total_penalty * 60; 
 
                 totalTime = Math.floor(timeDiff + penaltyTime);
             }
 
-            // Calculate total attempts across all problems
+            
             const totalAttempts = p.problem_progress.reduce((sum, prob) =>
                 sum + (prob.fail_count || 0), 0
             );
@@ -273,8 +279,8 @@ router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
                 leetcode_username: p.user_id?.leetcode_username || 'Unknown',
                 score: p.score,
                 penalty: Math.round(p.total_penalty * 100) / 100,
-                finish_time: p.finish_time || 0, // seconds from contest start (used for ranking)
-                total_time: p.finish_time || 0,  // alias for frontend compatibility
+                finish_time: p.finish_time || 0, 
+                total_time: p.finish_time || 0,  
                 solved: acceptedProblems.length,
                 attempts: totalAttempts,
                 problem_progress: p.problem_progress
@@ -291,17 +297,12 @@ router.get('/leaderboard/:contestId', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * POST /api/sync/sync-all/:contestId
- * Sync ALL participants' submissions for a contest (Protected)
- * Cooldown: 10 minutes between syncs
- * contestId can be either MongoDB ObjectId or contest unique_code
- */
+
 router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
     try {
         const { contestId } = req.params;
 
-        // Find contest - try by ObjectId first, then by unique_code
+        
         let contest;
         if (contestId.match(/^[0-9a-fA-F]{24}$/)) {
             contest = await Contest.findById(contestId).populate('problems.problem_id');
@@ -314,7 +315,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Contest not found' });
         }
 
-        // Check if contest is finalized (no more syncs allowed)
+        
         if (contest.finalized) {
             return res.status(400).json({
                 message: 'Contest has been finalized. Rankings are locked.'
@@ -323,14 +324,14 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
 
         const now = Date.now();
         const contestEndTime = new Date(contest.end_time).getTime();
-        const gracePeriodMs = 60 * 60 * 1000; // 1 hour grace period
+        const gracePeriodMs = 60 * 60 * 1000; 
         const isGracePeriod = now > contestEndTime && now <= (contestEndTime + gracePeriodMs);
         const isContestEnded = now > contestEndTime;
         const isPastGracePeriod = now > (contestEndTime + gracePeriodMs);
 
-        // If past grace period and not finalized, auto-finalize (no syncs allowed)
+        
         if (isPastGracePeriod) {
-            // Mark as finalized if not already
+            
             if (!contest.finalized) {
                 contest.finalized = true;
                 await contest.save();
@@ -340,10 +341,10 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
             });
         }
 
-        // Check cooldown - 10 minutes between sync-all calls
+        
         if (contest.last_bulk_sync) {
             const timeSinceLastSync = now - new Date(contest.last_bulk_sync).getTime();
-            const cooldownMs = 10 * 60 * 1000; // 10 min cooldown (same during grace period and live)
+            const cooldownMs = 10 * 60 * 1000; 
 
             if (timeSinceLastSync < cooldownMs) {
                 const waitTime = Math.ceil((cooldownMs - timeSinceLastSync) / 1000);
@@ -355,7 +356,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
             }
         }
 
-        // Get all participations using contest._id
+        
         const participations = await Participation.find({ contest_id: contest._id })
             .populate('user_id', 'leetcode_username');
 
@@ -367,7 +368,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
         let errorCount = 0;
         const User = require('../models/User');
 
-        // Sync each participant in batches to avoid rate limiting while utilizing concurrency
+        
         const processParticipant = async (participation) => {
             try {
                 const user = participation.user_id;
@@ -376,7 +377,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                     return { success: true, hasChanges: false };
                 }
 
-                // Fetch submissions
+                
                 const submissions = await getRecentSubmissions(user.leetcode_username, 50);
 
                 const contestStartTime = new Date(contest.start_time).getTime() / 1000;
@@ -384,7 +385,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
 
                 let hasChanges = false;
 
-                // Process each problem
+                
                 for (const problem of contest.problems) {
                     const slug = problem.slug;
                     const problemProgress = participation.problem_progress.find(p => p.slug === slug);
@@ -416,7 +417,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                         problemProgress.fail_count = failCount;
                         problemProgress.penalty = penalty;
 
-                        // Update score
+                        
                         const difficulty = problem.problem_id?.difficulty || 'Medium';
                         const points = difficulty === 'Easy' ? 3 : difficulty === 'Medium' ? 4 : 6;
                         participation.score += points;
@@ -430,18 +431,30 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                 }
 
                 if (hasChanges) {
-                    // Recompute finish_time from all accepted problems
+                    
                     const acceptedProblems = participation.problem_progress.filter(p => p.status === 'ACCEPTED');
+                    let newFinishTime = 0;
                     if (acceptedProblems.length > 0) {
                         const contestStartMs = new Date(contest.start_time).getTime();
                         const lastSolvedMs = Math.max(...acceptedProblems.map(p => new Date(p.solved_at).getTime()));
                         const timeFromStartSecs = (lastSolvedMs - contestStartMs) / 1000;
                         const failPenaltySecs = acceptedProblems.reduce((sum, p) => sum + (p.fail_count || 0), 0) * 5 * 60;
-                        participation.finish_time = Math.floor(timeFromStartSecs + failPenaltySecs);
+                        newFinishTime = Math.floor(timeFromStartSecs + failPenaltySecs);
                     }
 
-                    participation.last_sync = new Date();
-                    await participation.save();
+                    // Atomic update — overwrites all computed fields in a single operation
+                    await Participation.findOneAndUpdate(
+                        { _id: participation._id },
+                        {
+                            $set: {
+                                problem_progress: participation.problem_progress,
+                                score: participation.score,
+                                total_penalty: participation.total_penalty,
+                                finish_time: newFinishTime,
+                                last_sync: new Date()
+                            }
+                        }
+                    );
                 }
 
                 return { success: true, hasChanges };
@@ -455,10 +468,10 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
         for (let i = 0; i < participations.length; i += BATCH_SIZE) {
             const batch = participations.slice(i, i + BATCH_SIZE);
 
-            // Run the batch concurrently
+            
             const results = await Promise.all(batch.map(p => processParticipant(p)));
 
-            // Tally results
+            
             results.forEach(res => {
                 if (!res.success) {
                     errorCount++;
@@ -467,20 +480,20 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
                 }
             });
 
-            // Delay before the next batch to avoid LeetCode rate limits (429 Too Many Requests)
+            
             if (i + BATCH_SIZE < participations.length) {
-                const delay = 1500 + Math.random() * 1000; // 1.5-2.5 seconds
+                const delay = 1500 + Math.random() * 1000; 
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
 
-        // Update last bulk sync time
+        
         contest.last_bulk_sync = new Date();
         await contest.save();
 
-        // Calculate and save ranks for all participants
+        
         const allParticipations = await Participation.find({ contest_id: contest._id })
-            .sort({ score: -1, finish_time: 1 }); // Sort by score desc, finish_time asc (tiebreaker)
+            .sort({ score: -1, finish_time: 1 }); 
 
         for (let i = 0; i < allParticipations.length; i++) {
             const participation = allParticipations[i];
@@ -492,7 +505,7 @@ router.post('/sync-all/:contestId', authMiddleware, async (req, res) => {
         }
         console.log(`Updated ranks for ${allParticipations.length} participants`);
 
-        // Refetch contest to get latest state for grace period check
+        
         const nowAfterSync = Date.now();
         const endTimeCheck = new Date(contest.end_time).getTime();
         const gracePeriodCheck = 60 * 60 * 1000;
