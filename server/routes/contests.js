@@ -11,7 +11,7 @@ router.post('/create', authMiddleware, async (req, res) => {
     try {
         const { name, start_time, duration, problems, isPublic = false } = req.body;
 
-        // Validate input
+        
         if (!name || !start_time || !duration || !problems || problems.length === 0) {
             return res.status(400).json({ 
                 message: 'All fields are required and at least one problem must be selected' 
@@ -25,7 +25,7 @@ router.post('/create', authMiddleware, async (req, res) => {
             });
         }
 
-        // Generate unique code (unique among active/upcoming contests only)
+        
         let unique_code;
         let isUnique = false;
         let attempts = 0;
@@ -34,10 +34,10 @@ router.post('/create', authMiddleware, async (req, res) => {
         while (!isUnique && attempts < maxAttempts) {
             unique_code = nanoid(8);
             
-            // Check if code exists in active or upcoming contests (not ended)
+            
             const existingContest = await Contest.findOne({
                 unique_code,
-                end_time: { $gt: new Date() } // Only check non-ended contests
+                end_time: { $gt: new Date() } 
             });
             
             if (!existingContest) {
@@ -56,7 +56,7 @@ router.post('/create', authMiddleware, async (req, res) => {
 
         const startDate = new Date(start_time);
         
-        // Validate that start time is not in the past
+        
         const now = new Date();
         if (startDate < now) {
             return res.status(400).json({
@@ -68,28 +68,28 @@ router.post('/create', authMiddleware, async (req, res) => {
 
         console.log('payload:', JSON.stringify(req.body));
 
-        // Process problems: create any that don't exist in the database
+        
         const processedProblems = [];
         for (const p of problems) {
             let problemId;
             
-            // Extract the actual ObjectId from problem_id
+            
             if (typeof p.problem_id === 'object' && p.problem_id !== null) {
                 problemId = p.problem_id._id;
             } else {
                 problemId = p.problem_id;
             }
 
-            // If problem doesn't have an ID, create it in the database
+            
             if (!problemId) {
                 try {
-                    // Check if problem already exists by slug
+                    
                     let existingProblem = await Problem.findOne({ title_slug: p.slug });
                     
                     if (existingProblem) {
                         problemId = existingProblem._id;
                     } else {
-                        // Create new problem
+                        
                         const newProblem = new Problem({
                             title: p.title,
                             title_slug: p.slug,
@@ -102,7 +102,7 @@ router.post('/create', authMiddleware, async (req, res) => {
                     }
                 } catch (error) {
                     console.error(`Failed to create problem ${p.title}:`, error);
-                    continue; // Skip this problem
+                    continue; 
                 }
             }
 
@@ -119,7 +119,7 @@ router.post('/create', authMiddleware, async (req, res) => {
             });
         }
 
-        // Create contest
+        
         const contest = new Contest({
             unique_code,
             name,
@@ -163,16 +163,16 @@ router.post('/enroll/:code', authMiddleware, async (req, res) => {
         
         console.log('Enrollment attempt for code:', code);
 
-        // Find contest (only active/upcoming, not ended) - case insensitive
+        
         const contest = await Contest.findOne({ 
             unique_code: { $regex: new RegExp(`^${code}$`, 'i') },
-            end_time: { $gt: new Date() } // Only find non-ended contests
+            end_time: { $gt: new Date() } 
         });
         
         console.log('Contest found:', contest ? contest.name : 'NOT FOUND');
 
         if (!contest) {
-            // Debug: Check if contest exists but ended
+            
             const endedContest = await Contest.findOne({ 
                 unique_code: { $regex: new RegExp(`^${code}$`, 'i') }
             });
@@ -189,7 +189,7 @@ router.post('/enroll/:code', authMiddleware, async (req, res) => {
             });
         }
 
-        // Check if already enrolled
+        
         if (contest.participants.includes(req.user._id)) {
             return res.status(400).json({ 
                 message: 'You are already enrolled in this contest' 
@@ -199,7 +199,7 @@ router.post('/enroll/:code', authMiddleware, async (req, res) => {
         contest.participants.push(req.user._id);
         await contest.save();
 
-        // Create participation record
+        
         const participation = new Participation({
             contest_id: contest._id,
             user_id: req.user._id,
@@ -231,15 +231,12 @@ router.post('/enroll/:code', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/contests/:code
- * Get contest details (Protected)
- */
+
 router.get('/:code', authMiddleware, async (req, res) => {
     try {
         const { code } = req.params;
 
-        // First, try to find active/upcoming contest with this code
+        
         let contest = await Contest.findOne({ 
             unique_code: code,
             end_time: { $gt: new Date() }
@@ -247,14 +244,14 @@ router.get('/:code', authMiddleware, async (req, res) => {
             .populate('creator_id', 'username')
             .populate('problems.problem_id', 'title difficulty');
 
-        // If no active contest found, check if there's an ended contest with this code
-        // (allow viewing if user is enrolled)
+        
+        
         if (!contest) {
             contest = await Contest.findOne({ unique_code: code })
                 .populate('creator_id', 'username')
                 .populate('problems.problem_id', 'title difficulty');
             
-            // If found but ended, check enrollment
+            
             if (contest && new Date() > contest.end_time) {
                 const isEnrolled = contest.participants.includes(req.user._id);
                 if (!isEnrolled) {
@@ -271,21 +268,21 @@ router.get('/:code', authMiddleware, async (req, res) => {
             });
         }
 
-        // Check if user is enrolled
+        
         const isEnrolled = contest.participants.includes(req.user._id);
         const isCreator = contest.creator_id._id.toString() === req.user._id.toString();
         
-        // Check contest status
+        
         const now = new Date();
         const contestStarted = now >= new Date(contest.start_time);
         const contestEnded = now > new Date(contest.end_time);
         
-        // Only show problems if:
-        // 1. User is the creator, OR
-        // 2. Contest has started (live or ended) AND user is enrolled
+        
+        
+        
         const canSeeProblems = isCreator || (contestStarted && isEnrolled);
 
-        // Calculate sync-all cooldown (global for all users)
+        
         let syncAllCooldown = 0;
         if (contest.last_bulk_sync) {
             const timeSinceLastSync = Date.now() - new Date(contest.last_bulk_sync).getTime();
@@ -305,13 +302,13 @@ router.get('/:code', authMiddleware, async (req, res) => {
                 start_time: contest.start_time,
                 end_time: contest.end_time,
                 duration: contest.duration,
-                // Hide problems for upcoming contests (security)
+                
                 problems: canSeeProblems ? contest.problems : [],
                 problemCount: contest.problems.length,
                 isEnrolled,
                 participantCount: contest.participants.length,
                 status: contestEnded ? 'ended' : contestStarted ? 'live' : 'upcoming',
-                syncAllCooldown // Global cooldown for sync-all (in seconds)
+                syncAllCooldown 
             }
         });
 
@@ -323,10 +320,7 @@ router.get('/:code', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/contests/my/enrolled
- * Get all contests user is enrolled in (Protected)
- */
+
 router.get('/my/enrolled', authMiddleware, async (req, res) => {
     try {
         const contests = await Contest.find({ 
@@ -343,10 +337,7 @@ router.get('/my/enrolled', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/contests/my/created
- * Get all contests created by user (Protected)
- */
+
 router.get('/my/created', authMiddleware, async (req, res) => {
     try {
         const contests = await Contest.find({ 
@@ -363,19 +354,16 @@ router.get('/my/created', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/contests/public/all
- * Get all public contests (Protected)
- */
+
 router.get('/public/all', authMiddleware, async (req, res) => {
     try {
         const contests = await Contest.find({ 
             isPublic: true 
         })
         .populate('creator_id', 'username')
-        .sort({ start_time: -1 }); // Newest first
+        .sort({ start_time: -1 }); 
 
-        // Categorize into upcoming, live, and past
+        
         const now = new Date();
         const upcoming = [];
         const live = [];
@@ -422,15 +410,12 @@ router.get('/public/all', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * POST /api/contests/enroll-by-id/:contestId
- * Enroll in a public contest by ID (Protected)
- */
+
 router.post('/enroll-by-id/:contestId', authMiddleware, async (req, res) => {
     try {
         const { contestId } = req.params;
 
-        // Find contest
+        
         const contest = await Contest.findById(contestId);
 
         if (!contest) {
@@ -439,14 +424,14 @@ router.post('/enroll-by-id/:contestId', authMiddleware, async (req, res) => {
             });
         }
 
-        // Check if contest is public
+        
         if (!contest.isPublic) {
             return res.status(403).json({ 
                 message: 'This contest is private. Please use the contest code to join.' 
             });
         }
 
-        // Check if already enrolled
+        
         if (contest.participants.includes(req.user._id)) {
             return res.status(400).json({ 
                 message: 'You are already enrolled in this contest' 
@@ -459,7 +444,7 @@ router.post('/enroll-by-id/:contestId', authMiddleware, async (req, res) => {
             });
         }
 
-        // Add user to participants
+        
         contest.participants.push(req.user._id);
         await contest.save();
 

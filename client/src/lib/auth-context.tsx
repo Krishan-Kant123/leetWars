@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!token && !isPublicPath) {
             router.push('/login');
-        } else if (token && (pathname === '/login' || pathname === '/register')) {
+        } else if (token && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
             router.push('/dashboard');
         }
     }, [token, pathname, isLoading, router]);

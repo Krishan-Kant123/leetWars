@@ -4,10 +4,7 @@ const Problem = require('../models/Problem');
 const authMiddleware = require('../middleware/auth');
 const { searchProblemsOnLeetCode } = require('../services/leetcodeService');
 
-/**
- * GET /api/problems/search
- * Search problems - first in local DB, then LeetCode API (Protected)
- */
+
 router.get('/search', authMiddleware, async (req, res) => {
     try {
         const { query, difficulty, tags, page = 1, limit = 20 } = req.query;
@@ -22,7 +19,7 @@ router.get('/search', authMiddleware, async (req, res) => {
         console.log('   Tags:', tags || 'none');
         console.log('   Page:', pageNum, '| Limit:', limitNum);
 
-        // Step 1: Search local database
+        
         let filter = {};
 
         if (query) {
@@ -43,10 +40,10 @@ router.get('/search', authMiddleware, async (req, res) => {
 
         console.log('   DB Filter:', JSON.stringify(filter));
         
-        // Get total count for pagination
+        
         const totalCount = await Problem.countDocuments(filter);
         
-        // Get paginated problems
+        
         let problems = await Problem.find(filter)
             .skip(skip)
             .limit(limitNum)
@@ -54,7 +51,7 @@ router.get('/search', authMiddleware, async (req, res) => {
             
         console.log(`Found ${problems.length} problems (Page ${pageNum}/${Math.ceil(totalCount / limitNum)}, Total: ${totalCount})`);
 
-        // Step 2: If no results in local DB and it's the first page, search LeetCode API
+        
         if (problems.length === 0 && pageNum === 1) {
             console.log('No local results, searching LeetCode API...');
             
@@ -68,10 +65,10 @@ router.get('/search', authMiddleware, async (req, res) => {
 
                 console.log(`LeetCode API returned ${leetcodeResults.length} problems`);
 
-                // Step 3: Cache results in local database (async, don't wait)
+                
                 if (leetcodeResults.length > 0) {
                     console.log(`Caching ${leetcodeResults.length} problems to database...`);
-                    // Save to database in background
+                    
                     setImmediate(async () => {
                         try {
                             let cached = 0;
@@ -94,7 +91,7 @@ router.get('/search', authMiddleware, async (req, res) => {
             } catch (error) {
                 console.error('LeetCode API search failed:', error.message);
                 console.error('   Full error:', error);
-                // Return empty array if LeetCode API also fails
+                
                 return res.json({ 
                     problems: [], 
                     source: 'none',
@@ -137,10 +134,7 @@ router.get('/search', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/problems/:slug
- * Get problem by slug (Protected)
- */
+
 router.get('/:slug', authMiddleware, async (req, res) => {
     try {
         const problem = await Problem.findOne({ title_slug: req.params.slug });

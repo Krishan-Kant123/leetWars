@@ -4,10 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const { getUserProfile, getUserSolvedByTags, getUserContestHistory } = require('../services/leetcodeService');
 const { analyzeProgress, generateRoast, chatWithBot, getImprovementSuggestions } = require('../services/deepseekService');
 
-/**
- * POST /api/bot/chat
- * Chat with AI bot about LeetCode progress
- */
+
 router.post('/chat', authMiddleware, async (req, res) => {
     try {
         const { message, conversationHistory = [] } = req.body;
@@ -18,7 +15,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
             });
         }
 
-        // Fetch user's LeetCode stats
+        
         const leetcodeUsername = req.user.leetcode_username;
         const [profile, tagStats, contestData] = await Promise.all([
             getUserProfile(leetcodeUsername),
@@ -33,7 +30,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
             contestRanking: contestData.contestRanking
         };
 
-        // Get bot response
+        
         const reply = await chatWithBot(message, userStats, conversationHistory);
 
         res.json({
@@ -50,10 +47,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/bot/analyze
- * Get detailed progress analysis
- */
+
 router.get('/analyze', authMiddleware, async (req, res) => {
     try {
         const leetcodeUsername = req.user.leetcode_username;
@@ -90,10 +84,7 @@ router.get('/analyze', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/bot/roast
- * Get roasted by the bot 
- */
+
 router.get('/roast', authMiddleware, async (req, res) => {
     try {
         const { severity = 'medium' } = req.query;
@@ -135,10 +126,7 @@ router.get('/roast', authMiddleware, async (req, res) => {
     }
 });
 
-/**
- * GET /api/bot/suggestions
- * Get improvement suggestions
- */
+
 router.get('/suggestions', authMiddleware, async (req, res) => {
     try {
         const leetcodeUsername = req.user.leetcode_username;

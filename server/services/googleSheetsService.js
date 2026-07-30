@@ -1,32 +1,24 @@
 const axios = require('axios');
 
-/**
- * Google Sheets API Manager for fetching company-based LeetCode problems
- * Uses in-memory caching with 24-hour TTL (Vercel-compatible, no cron jobs)
- */
+
 class GoogleSheetsAPIManager {
     static API_KEY = process.env.API_KEY;
     static SHEETS_ID = process.env.SHEETS_ID ;
-    static CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    static CACHE_TTL = 24 * 60 * 60 * 1000; 
 
-    // In-memory cache
+    
     static companiesCache = { data: null, timestamp: null };
-    static problemsCache = new Map(); // key: companyName, value: { data, timestamp }
+    static problemsCache = new Map(); 
 
-    /**
-     * Check if cache is valid (not expired)
-     */
+    
     static isCacheValid(timestamp) {
         if (!timestamp) return false;
         return Date.now() - timestamp < this.CACHE_TTL;
     }
 
-    /**
-     * Fetch all companies with their row ranges
-     * Returns: [{ name, displayName, startRow, endRow }]
-     */
+    
     static async getCompanies() {
-        // Check cache first
+        
         if (this.isCacheValid(this.companiesCache.timestamp)) {
             console.log('Returning companies from cache');
             return this.companiesCache.data;
@@ -45,7 +37,7 @@ class GoogleSheetsAPIManager {
                 throw new Error('No company data found');
             }
 
-            // Skip header row and parse companies
+            
             const companies = rows.slice(1).map(row => ({
                 name: row[0]?.toLowerCase().trim(),
                 displayName: this.formatCompanyName(row[0]),
@@ -53,7 +45,7 @@ class GoogleSheetsAPIManager {
                 endRow: parseInt(row[2])
             })).filter(company => company.name && company.startRow && company.endRow);
 
-            // Cache the result
+            
             this.companiesCache = {
                 data: companies,
                 timestamp: Date.now()
@@ -65,7 +57,7 @@ class GoogleSheetsAPIManager {
         } catch (error) {
             console.error(' Error fetching companies:', error.message);
             
-            // Return cached data if available, even if expired
+            
             if (this.companiesCache.data) {
                 console.log(' Returning stale cache due to error');
                 return this.companiesCache.data;
@@ -75,14 +67,11 @@ class GoogleSheetsAPIManager {
         }
     }
 
-    /**
-     * Fetch problems for a specific company
-     * Returns: [{ title, title_slug, difficulty, frequency, lastAsked, acceptanceRate, leetcodeUrl }]
-     */
+    
     static async getCompanyProblems(companyName) {
         const normalizedName = companyName.toLowerCase().trim();
 
-        // Check cache first
+        
         const cached = this.problemsCache.get(normalizedName);
         if (cached && this.isCacheValid(cached.timestamp)) {
             console.log(` Returning problems for "${companyName}" from cache`);
@@ -92,7 +81,7 @@ class GoogleSheetsAPIManager {
         console.log(`Fetching problems for "${companyName}" from Google Sheets...`);
 
         try {
-            // First, get the company's row range
+            
             const companies = await this.getCompanies();
             const company = companies.find(c => c.name === normalizedName);
 
@@ -100,7 +89,7 @@ class GoogleSheetsAPIManager {
                 throw new Error(`Company "${companyName}" not found`);
             }
 
-            // Fetch problems for this company's range
+            
             const range = `CompaniesProblem!A${company.startRow}:I${company.endRow}`;
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEETS_ID}/values/${range}?key=${this.API_KEY}`;
             
@@ -112,10 +101,10 @@ class GoogleSheetsAPIManager {
                 return [];
             }
 
-            // Parse problems
+            
             const problems = this.parseSheetProblems(rows, normalizedName);
 
-            // Cache the result
+            
             this.problemsCache.set(normalizedName, {
                 data: problems,
                 timestamp: Date.now()
@@ -127,7 +116,7 @@ class GoogleSheetsAPIManager {
         } catch (error) {
             console.error(` Error fetching problems for "${companyName}":`, error.message);
             
-            // Return cached data if available, even if expired
+            
             const cached = this.problemsCache.get(normalizedName);
             if (cached) {
                 console.log(' Returning stale cache due to error');
@@ -138,13 +127,10 @@ class GoogleSheetsAPIManager {
         }
     }
 
-    /**
-     * Parse Google Sheets rows into problem objects
-     * Row format: [CompanyName, QuestionId, Unknown, TimePeriod, Title, AcceptanceRate, URL, Difficulty]
-     */
+    
     static parseSheetProblems(rows, companyName) {
         const problems = [];
-        const seenSlugs = new Set(); // Deduplicate problems
+        const seenSlugs = new Set(); 
 
         for (const row of rows) {
             try {
@@ -156,7 +142,7 @@ class GoogleSheetsAPIManager {
                 const titleSlug = this.extractSlugFromUrl(leetcodeUrl);
                 if (!titleSlug) continue;
 
-                // Deduplicate by slug
+                
                 if (seenSlugs.has(titleSlug)) continue;
                 seenSlugs.add(titleSlug);
 
@@ -174,17 +160,14 @@ class GoogleSheetsAPIManager {
                 problems.push(problem);
             } catch (error) {
                 console.error('Error parsing problem row:', error.message);
-                // Continue processing other rows
+                
             }
         }
 
         return problems;
     }
 
-    /**
-     * Extract title_slug from LeetCode URL
-     * Example: "https://leetcode.com/problems/two-sum/" -> "two-sum"
-     */
+    
     static extractSlugFromUrl(url) {
         try {
             const match = url.match(/leetcode\.com\/problems\/([^\/]+)/);
@@ -194,10 +177,7 @@ class GoogleSheetsAPIManager {
         }
     }
 
-    /**
-     * Format acceptance rate as percentage with 2 decimal places
-     * Example: "0.586" -> "58.60%"
-     */
+    
     static formatAcceptanceRate(rate) {
         try {
             const numRate = parseFloat(rate);
@@ -208,21 +188,16 @@ class GoogleSheetsAPIManager {
         }
     }
 
-    /**
-     * Normalize difficulty to match our schema
-     */
+    
     static normalizeDifficulty(difficulty) {
         const normalized = difficulty?.trim().toLowerCase();
         if (normalized === 'easy') return 'Easy';
         if (normalized === 'medium') return 'Medium';
         if (normalized === 'hard') return 'Hard';
-        return 'Medium'; // Default
+        return 'Medium'; 
     }
 
-    /**
-     * Format company name for display
-     * Example: "google" -> "Google", "two-sigma" -> "Two Sigma"
-     */
+    
     static formatCompanyName(name) {
         if (!name) return '';
         return name

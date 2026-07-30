@@ -24,7 +24,7 @@ const corsOptions = {
         
         if (!origin) return callback(null, true);
         
-        // Allow extension background scripts
+        
         if (origin.startsWith('chrome-extension://')) {
             return callback(null, true);
         }

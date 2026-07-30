@@ -11,14 +11,14 @@ router.post('/register', async (req, res) => {
     try {
         const { username, email, password, leetcode_username } = req.body;
 
-        // Validate input
+        
         if (!username || !email || !password || !leetcode_username) {
             return res.status(400).json({ 
                 message: 'All fields are required' 
             });
         }
 
-        // Check if user already exists
+        
         const existingUser = await User.findOne({ 
             $or: [{ email }, { username }] 
         });
@@ -29,7 +29,7 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // Validate LeetCode username (optional - can be slow)
+        
         const isValidLC = await validateLeetCodeUsername(leetcode_username);
         if (!isValidLC) {
             return res.status(400).json({ 
@@ -37,11 +37,11 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // Hash password
+        
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
-        // Create user
+        
         const user = new User({
             username,
             email,
@@ -51,7 +51,7 @@ router.post('/register', async (req, res) => {
 
         await user.save();
 
-        // Generate JWT token
+        
         const token = jwt.sign(
             { userId: user._id },
             process.env.JWT_SECRET,
@@ -82,7 +82,7 @@ router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Validate input
+        
         if (!email || !password) {
             return res.status(400).json({ 
                 message: 'Email and password are required' 
@@ -105,7 +105,7 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Generate JWT token
+        
         const token = jwt.sign(
             { userId: user._id },
             process.env.JWT_SECRET,
@@ -131,7 +131,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// OAuth Upsert (called by NextAuth to ensure user exists in MongoDB)
+
 router.post('/oauth-upsert', async (req, res) => {
     try {
         const { email, name, image } = req.body;
@@ -143,13 +143,13 @@ router.post('/oauth-upsert', async (req, res) => {
         let user = await User.findOne({ email });
 
         if (!user) {
-            // Create new user for OAuth
-            // Use a random password since they use OAuth
+            
+            
             const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
             const salt = await bcrypt.genSalt(10);
             const password_hash = await bcrypt.hash(randomPassword, salt);
 
-            // Generate a unique username if name is not provided
+            
             const baseUsername = name ? name.replace(/\s+/g, '').toLowerCase() : email.split('@')[0];
             let username = baseUsername;
             let counter = 1;
@@ -183,7 +183,7 @@ router.post('/oauth-upsert', async (req, res) => {
     }
 });
 
-// Get user by email (called by NextAuth jwt callback)
+
 router.get('/user-by-email', async (req, res) => {
     try {
         const { email } = req.query;

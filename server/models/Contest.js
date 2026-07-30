@@ -4,7 +4,7 @@ const contestSchema = new mongoose.Schema({
     unique_code: {
         type: String,
         required: true
-        // Removed unique: true to allow code reuse after contests end
+        
     },
     name: {
         type: String,
@@ -24,12 +24,12 @@ const contestSchema = new mongoose.Schema({
         required: true
     },
     duration: {
-        type: Number, // in minutes
+        type: Number, 
         required: true
     },
     isPublic: {
         type: Boolean,
-        default: false // Private by default
+        default: false 
     },
     problems: [{
         problem_id: {

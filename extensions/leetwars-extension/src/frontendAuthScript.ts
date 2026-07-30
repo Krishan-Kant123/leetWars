@@ -15,7 +15,8 @@ async function fetchNextAuthSession() {
 
     const session = await res.json();
     // Return the session only if it actually has user data
-    if (Object.keys(session).length > 0) {
+    if (Object.keys(session).length > 0 && session.user && session.backendToken) {
+      console.log("session", session)
       return session;
     }
     return null;
@@ -25,7 +26,7 @@ async function fetchNextAuthSession() {
   }
 }
 
-let lastToken = "";
+let lastToken: string | null = null;
 
 async function checkFrontendAuth() {
   const session = await fetchNextAuthSession();

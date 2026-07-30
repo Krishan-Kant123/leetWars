@@ -1,9 +1,7 @@
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-/**
- * Call OpenRouter AI API using fetch
- */
+
 const callOpenRouter = async (messages, systemPrompt = '') => {
     try {
         const messagesWithSystem = systemPrompt 
@@ -38,9 +36,7 @@ const callOpenRouter = async (messages, systemPrompt = '') => {
 };
 
 
-/**
- * Analyze user's LeetCode progress
- */
+
 const analyzeProgress = async (userStats) => {
     const { solvedStats, totalProblems, tagStats, contestRanking } = userStats;
 
@@ -68,9 +64,7 @@ Keep it concise and motivating.`;
     return await callOpenRouter(messages, systemPrompt);
 };
 
-/**
- * Generate a roast based on user stats
- */
+
 const generateRoast = async (userStats, severity = 'brutal') => {
     const { solvedStats, totalProblems, tagStats, contestRanking } = userStats;
 
@@ -86,19 +80,19 @@ Include coding memes and relatable references. Make it funny but wholesome.
 Length: 4-5 sentences with emojis.`;
     } else if (severity === 'medium') {
         intensityPrompt = `Go SAVAGE but hilarious! Use Gen-Z slang, coding culture references, and brutal honesty.
-Think: "Your code is giving 'copy-paste from Stack Overflow' energy 💀"
+Think: "Your code is giving 'copy-paste from Stack Overflow' energy "
 Be witty, use comparisons, and roast their weak spots HARD. Make them laugh while crying.
 Include at least 2-3 specific roasts about their stats.
 Length: 6-8 sentences with plenty of emojis and slang (fr, ngl, bro, bestie, etc).`;
     } else {
-        intensityPrompt = `ABSOLUTELY UNHINGED SAVAGE MODE! 🔥 
+        intensityPrompt = `ABSOLUTELY UNHINGED SAVAGE MODE!  
 Go FULL ROAST - no mercy, maximum chaos, peak comedy!
 Use:
 - Gen-Z slang (fr, ngl, bestie, bro, sis, deadass, cap, bussin, mid, etc)
 - Coding memes (skill issue, L + ratio, touch grass, "it's giving...", etc)
 - Brutal comparisons (slower than Internet Explorer, easier than FizzBuzz, etc)
 - Personal callouts based on their stats
-- Exaggerated reactions (💀😭🤡)
+- Exaggerated reactions ()
 
 Roast EVERYTHING: their easy problem addiction, contest avoidance, hard problem fear, favorite topics, etc.
 Make it SO savage they screenshot it to show their friends.
@@ -112,12 +106,12 @@ Use modern slang, memes, and relatable references. Make every roast unique and p
 
     const userPrompt = `ROAST this LeetCode user based on their stats:
 
-📊 Stats Breakdown:
+ Stats Breakdown:
 - Total Solved: ${totalSolved} problems
 - Easy: ${solvedStats.easy}/${totalProblems.easy} (${easyPercent}%) 
 - Medium: ${solvedStats.medium}/${totalProblems.medium} (${mediumPercent}%)
 - Hard: ${solvedStats.hard}/${totalProblems.hard} (${hardPercent}%)
-- Contest Rating: ${contestRanking?.rating || 'Never participated (scared much? 💀)'}
+- Contest Rating: ${contestRanking?.rating || 'Never participated (scared much? )'}
 - Favorite Topics: ${tagStats?.slice(0, 3).map(t => t.tagName).join(', ') || 'None (yikes)'}
 
 ${intensityPrompt}
@@ -125,7 +119,7 @@ ${intensityPrompt}
 IMPORTANT: 
 - Be SPECIFIC about their stats (call out low percentages, easy problem addiction, contest avoidance, etc)
 - Use comparisons and exaggerations for comedy
-- Include emojis throughout (💀😭🤡🔥👀 etc)
+- Include emojis throughout ( etc)
 - End with a motivational challenge that actually inspires them
 - Make it feel personal and relatable, not generic`;
 
@@ -134,9 +128,7 @@ IMPORTANT:
     return await callOpenRouter(messages, systemPrompt);
 };
 
-/**
- * Chat with bot about LeetCode progress
- */
+
 const chatWithBot = async (userMessage, userStats, conversationHistory = []) => {
     const { solvedStats, totalProblems, tagStats, contestRanking } = userStats;
 
@@ -156,7 +148,7 @@ IMPORTANT RULES:
    - This platform (LeetWars) and its features
    
 2. If the user asks about ANYTHING ELSE (politics, sports, general knowledge, personal advice, etc.), respond with:
-   "I'm sorry, but I can only help with LeetCode-related questions, coding problems, algorithms, and platform features. Please ask me something related to your coding journey! 🚀"
+   "I'm sorry, but I can only help with LeetCode-related questions, coding problems, algorithms, and platform features. Please ask me something related to your coding journey! "
 
 3. Be encouraging, specific, and helpful for on-topic questions.
 4. Use the user's stats to provide personalized advice.`;
@@ -169,16 +161,14 @@ IMPORTANT RULES:
     return await callOpenRouter(messages, systemPrompt);
 };
 
-/**
- * Get improvement suggestions
- */
+
 const getImprovementSuggestions = async (userStats) => {
     const { solvedStats, totalProblems, tagStats } = userStats;
 
-    // Find weak areas (tags with few problems solved)
+    
     const weakTags = tagStats?.filter(t => t.problemsSolved < 10).slice(0, 5) || [];
     
-    // Find strong areas
+    
     const strongTags = tagStats?.filter(t => t.problemsSolved >= 20).slice(0, 3) || [];
 
     const systemPrompt = 'You are a LeetCode study plan expert. Provide specific, actionable advice.';

@@ -4,11 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const User = require('../models/User');
 const { validateLeetCodeUsername } = require('../services/leetcodeService');
 
-/**
- * @route GET /api/onboarding/validate-leetcode/:username
- * @desc Validate if a LeetCode username exists and is public
- * @access Public (no auth required for validation)
- */
+
 router.get('/validate-leetcode/:username', async (req, res) => {
     try {
         const { username } = req.params;
@@ -20,7 +16,7 @@ router.get('/validate-leetcode/:username', async (req, res) => {
             });
         }
 
-        // Validate the LeetCode username using the existing service
+        
         const isValid = await validateLeetCodeUsername(username);
 
         res.json({
@@ -38,11 +34,7 @@ router.get('/validate-leetcode/:username', async (req, res) => {
     }
 });
 
-/**
- * @route POST /api/onboarding/set-leetcode-id
- * @desc Set the LeetCode username for the authenticated user
- * @access Private (requires auth)
- */
+
 router.post('/set-leetcode-id', authMiddleware, async (req, res) => {
     try {
         const { leetcode_username, name } = req.body;
@@ -54,7 +46,7 @@ router.post('/set-leetcode-id', authMiddleware, async (req, res) => {
             });
         }
 
-        // Validate the LeetCode username
+        
         const isValid = await validateLeetCodeUsername(leetcode_username);
 
         if (!isValid) {
@@ -63,7 +55,7 @@ router.post('/set-leetcode-id', authMiddleware, async (req, res) => {
             });
         }
 
-        // Check if this LeetCode username is already taken by another user
+        
         const existingUser = await User.findOne({
             leetcode_username: leetcode_username.trim(),
             _id: { $ne: userId }
@@ -75,19 +67,19 @@ router.post('/set-leetcode-id', authMiddleware, async (req, res) => {
             });
         }
 
-        // Prepare update object
+        
         const updateData = {
             leetcode_username: leetcode_username.trim(),
-            // If username is not set, use leetcode_username as fallback
+            
             ...(req.user.username ? {} : { username: leetcode_username.trim() })
         };
 
-        // If name is provided, update it
+        
         if (name && name.trim()) {
             updateData.name = name.trim();
         }
 
-        // Update the user's LeetCode username and name
+        
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             updateData,
